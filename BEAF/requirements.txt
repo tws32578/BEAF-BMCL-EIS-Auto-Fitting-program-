@@ -1,0 +1,13 @@
+# 직접 쓰는 패키지 (검증된 버전으로 고정). 나머지 의존 패키지 버전은 constraints.txt
+impedance==1.7.1
+pyimpspec==5.2.0
+kvxopt==1.3.3.3
+galvani==0.5.0
+numpy==2.5.3
+scipy==1.18.1
+pandas==3.0.6
+openpyxl==3.1.5
+fastapi==0.143.0
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32
+autoeis==0.0.44
