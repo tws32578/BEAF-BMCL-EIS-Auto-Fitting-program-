@@ -1,1 +1,1 @@
-# BEAF-BMCL-EIS-Autoi-Fitting-program-
+# BEAF-BMCL-EIS-Auto-Fitting-program-
