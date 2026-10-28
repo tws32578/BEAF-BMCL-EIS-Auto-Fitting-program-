@@ -1,0 +1,22 @@
+# 연구실 측정 데이터 (외부 유출 금지)
+학부생 전달용 GrllGr 온도별 EIS 데이터/
+*.mpr
+*.mpt
+*.mgr
+*.mps
+*.mpp
+*.mgp
+*.sta
+test_data/
+
+# 작업용 · 백업
+_backup_*/
+_to_delete/
+_incoming_*
+배포/
+user_circuits.json
+
+# 파이썬 · 기타
+__pycache__/
+*.pyc
+.claude/

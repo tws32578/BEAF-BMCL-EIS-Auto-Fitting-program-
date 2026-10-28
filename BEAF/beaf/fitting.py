@@ -221,15 +221,19 @@ def fit_circuit(circuit_str, freq, Z, p0=None, drt_peaks=None, n_starts=8,
 
     best = min(runs, key=lambda r: float(np.sum(r.fun ** 2)))
     chi2 = float(np.sum(best.fun ** 2))
-    N, k = 2 * len(freq), circ.n_params
+    # 고정 파라미터 (범위가 0.1% 이내로 묶인 것, 예: R0 = x절편) 는 자유도에서 뺌
+    fixed = [nm for nm, (b_lo, b_hi) in bounds.items() if b_hi <= b_lo * 1.001]
+    free = np.array([nm not in fixed for nm in circ.param_names])
+    N, k = 2 * len(freq), int(free.sum())
     p = tr.to_p(best.x)
 
     # 공분산 (변환 공간 → 원래 공간)
     cov = None
     try:
-        J = best.jac
+        J = best.jac[:, free]
         s2 = chi2 / max(N - k, 1)
-        cov_x = np.linalg.pinv(J.T @ J) * s2
+        cov_x = np.zeros((circ.n_params, circ.n_params))
+        cov_x[np.ix_(free, free)] = np.linalg.pinv(J.T @ J) * s2
         D = tr.dp_dx(p)
         cov = cov_x * np.outer(D, D)
     except Exception:                                     # noqa: BLE001
@@ -272,7 +276,7 @@ def fit_circuit(circuit_str, freq, Z, p0=None, drt_peaks=None, n_starts=8,
     bic = float(N * np.log(chi2 / N) + k * np.log(N))
 
     out = {
-        "ok": True, "circuit": circuit_str, "k": k, "N": N,
+        "ok": True, "circuit": circuit_str, "k": k, "N": N, "fixed": fixed,
         "names": circ.param_names, "units": circ.param_units, "kinds": circ.param_kinds,
         "values": p.tolist(), "stderr": err.tolist(),
         "chi2": chi2, "rms_pct": rms_pct, "aic": aic, "bic": bic,

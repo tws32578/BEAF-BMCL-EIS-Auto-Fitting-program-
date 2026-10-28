@@ -40,15 +40,31 @@ def auto_range(freq, Z):
     has_tail = (n - 1 - end) >= 3 and (mim[-1] - mim[end]) > 0.05 * (np.ptp(mim[start:]) + 1e-12)
     if not has_tail:
         end = n - 1
-    return {"start": start, "valley": end, "end_full": n - 1,
+    # 반원 끝 = 골짜기(최저점) 바로 앞 점. 최저점은 반원과 확산(45°) 직선이 섞인 점이라 반원 피팅에서 뺌
+    #   (연구실 수동 피팅 기준: 'Warburg 로 꺾이기 직전 점')
+    arc_end = end - 1 if has_tail and end - 1 > start else end
+    return {"start": start, "valley": end, "arc_end": arc_end, "end_full": n - 1,
+            "first_inductive": start - 1 if start > 0 else None,
             "has_tail": bool(has_tail), "has_inductive": bool(start > 0)}
 
 
+def x_intercept(freq, Z, start):
+    """−Z'' = 0 교차점의 실수부 R_HF 와 교차 주파수 (start = 처음 −Z'' > 0 인 index, start ≥ 1 일 때만)"""
+    if start is None or start < 1:
+        return None, None
+    i = start
+    y0, y1 = -Z.imag[i - 1], -Z.imag[i]               # y0 ≤ 0 < y1
+    t = y0 / (y0 - y1) if y1 != y0 else 0.0
+    R_HF = float(Z.real[i - 1] + t * (Z.real[i] - Z.real[i - 1]))
+    f_x = float(10 ** (np.log10(freq[i - 1]) + t * (np.log10(freq[i]) - np.log10(freq[i - 1]))))
+    return R_HF, f_x
+
+
 def fit_mask(freq, Z, mode="arcs", fmin=None, fmax=None, exclude_idx=()):
-    """피팅에 쓸 점 마스크. mode = 'arcs'(반원 구간) | 'full'(확산 꼬리 포함)"""
+    """피팅에 쓸 점 마스크. mode = 'arcs'(반원 구간: 반원 끝까지) | 'full'(확산 꼬리 포함)"""
     r = auto_range(freq, Z)
     m = np.zeros(len(freq), bool)
-    last = r["valley"] if mode == "arcs" else r["end_full"]
+    last = r["arc_end"] if mode == "arcs" else r["end_full"]
     m[r["start"]:last + 1] = True
     if fmin is not None:
         m &= freq >= fmin
@@ -145,11 +161,16 @@ def drt_once_safe(freq, Z, lam):
         return str(e)
 
 
-def drt_analysis(freq, Z, raw_runs=None):
+WARBURG_DEC = 0.5      # 반원 구간 저주파 끝에서 이 decade 안의 피크 = Warburg 꼬리가 남긴 피크로 봄
+
+
+def drt_analysis(freq, Z, raw_runs=None, tail=False):
     """
     freq, Z : 피팅 구간 데이터.
     raw_runs: 미리 계산한 [drt_once_safe 결과] (λ 순서 = LAMBDAS). 없으면 여기서 차례로 계산
-    반환: dict(tau, gamma (기본 λ), lambda, peaks(확실), peaks_all, n_robust)
+    tail    : 데이터에 저주파 확산 꼬리(Warburg)가 있음 → 구간 저주파 끝 0.5 decade 안의 피크는 반원으로 세지 않음
+              (반원 구간이 Warburg 로 꺾이기 직전에서 끝나므로, 그 근처 피크는 확산 응답이 남긴 것)
+    반환: dict(tau, gamma (기본 λ), lambda, peaks(확실), peaks_all, peaks_warburg, n_robust)
     """
     tau_lo, tau_hi = 1 / (2 * np.pi * freq.max()), 1 / (2 * np.pi * freq.min())
     if raw_runs is None:
@@ -162,10 +183,15 @@ def drt_analysis(freq, Z, raw_runs=None):
         runs.append((lam_used, tau, gamma, _peaks(tau, gamma, tau_lo, tau_hi)))
 
     base = runs[1]                                    # λ = 1e-3 를 표시용 기준으로
-    robust = []
+    robust, warb = [], []
     R_total = sum(p["R"] for p in base[3]) or 1.0
+    f_lo = float(freq.min())
     for p in base[3]:
         if p["edge"]:
+            continue
+        if tail and p["f"] < f_lo * 10 ** WARBURG_DEC:
+            p["warburg"] = True
+            warb.append(p)
             continue
         if p["R"] < 0.02 * R_total:                   # 전체 분극 저항의 2% 미만 = 노이즈 피크로 봄
             continue
@@ -175,7 +201,7 @@ def drt_analysis(freq, Z, raw_runs=None):
         if seen == len(runs):
             robust.append(p)
     return {"ok": True, "tau": base[1].tolist(), "gamma": base[2].tolist(),
-            "lambda": base[0], "peaks": robust, "peaks_all": base[3],
+            "lambda": base[0], "peaks": robust, "peaks_all": base[3], "peaks_warburg": warb,
             "n_robust": len(robust), "tau_window": [tau_lo, tau_hi],
             "lambda_runs": [{"lambda": r[0], "tau": r[1].tolist(), "gamma": r[2].tolist()}
                             for r in runs]}

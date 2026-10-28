@@ -86,8 +86,7 @@ summary{cursor:pointer;font-weight:600}
     <li><b>Windows PC</b>에 <a href="https://www.anaconda.com/download">Anaconda</a>를 설치합니다.
       설치할 때 <b>Just Me</b>를 고르고, 위치는 기본값(<code>C:\Users\사용자이름\anaconda3</code>) 그대로 둡니다.</li>
     <li>BEAF 폴더(zip)를 원하는 곳에 풉니다. 너무 깊은 경로는 피하세요 (예: 바탕 화면\BEAF).</li>
-    <li><code>설치.bat</code>을 더블클릭합니다. 인터넷이 필요하고 처음에는 10~30분쯤 걸립니다
-      (AutoEIS용 Julia를 받는 시간 포함). "설치 완료"가 나오면 창을 닫습니다.</li>
+    <li><code>설치.bat</code>을 더블클릭합니다. 인터넷이 필요하고 처음에는 5~10분쯤 걸립니다. "설치 완료"가 나오면 창을 닫습니다.</li>
   </ol>
   <h3>매번</h3>
   <ol class="steps">
@@ -116,7 +115,6 @@ summary{cursor:pointer;font-weight:600}
       '모름'이면 R1, R2 … (고주파 → 저주파). '더 알려주기'에서 전극 면적을 넣으면 Ω·cm²로도 보여 줍니다.</li>
     <li><b>분석</b> 버튼 — 진행도와 남은 시간이 표시됩니다. 측정 하나에 보통 1~2초.</li>
     <li><b>결과</b> — 요약 표, 여러 측정 비교, 측정 하나 자세히, 엑셀로 내보내기.</li>
-    <li><b>고급</b> (접혀 있음) — 피팅 구간·후보 설정, 회로 직접 입력·저장, AutoEIS 회로 탐색·베이지안 추론, KK·잔차 그래프.</li>
   </ol>
 </section>
 
@@ -168,8 +166,7 @@ summary{cursor:pointer;font-weight:600}
 
 <section id="how">
   <h2>5. 회로를 고르는 원리</h2>
-  <p>AutoEIS는 회로를 무작위로 많이 만들어 진화시키며 찾습니다 (수천 번 피팅, 수 분 이상).
-    BEAF는 <b>데이터를 먼저 분석해 회로 모양을 짐작한 뒤, 블록으로 조립한 수십 개 후보만 시험</b>합니다. 그래서 측정 하나에 1~2초면 끝납니다.</p>
+  <p>BEAF는 <b>데이터를 먼저 분석해 회로 모양을 짐작한 뒤, 블록으로 조립한 수십 개 후보만 시험</b>합니다. 그래서 측정 하나에 1~2초면 끝납니다.</p>
   <ol class="steps">
     <li><b>KK 검증</b> — 측정이 정상인지 확인. 잔차 = 그 데이터의 잡음 수준.</li>
     <li><b>DRT</b> — 스펙트럼을 시정수 분포로 바꿔 "과정이 몇 개, 어느 주파수에" 있는지 셉니다.
@@ -189,7 +186,7 @@ summary{cursor:pointer;font-weight:600}
       다만 데이터만으로 파라미터(R_ion, R_ct)가 잘 갈리지 않을 수 있으니 값은 신중히 보세요.</p>
   </details>
   <div class="note">한계: 블록 조합으로 만들 수 없는 회로(반원 안에 반원이 들어간 중첩 구조 등)는 찾지 못합니다.
-    그럴 때는 고급 → AutoEIS 탐색을 쓰세요. AutoEIS가 찾은 회로도 같은 기준으로 평가됩니다.</div>
+    그럴 때는 분석 설정 창의 '등가회로 → 직접 고르기'에서 목록이나 직접 입력으로 회로를 지정하세요.</div>
 </section>
 
 <section id="judge">
@@ -205,7 +202,7 @@ summary{cursor:pointer;font-weight:600}
     <tr><td>잔차 &gt; max(3 × KK 잡음, 2 %)</td><td>검토</td></tr>
     <tr><td>KK 잔차 &gt; 2 %</td><td>데이터 이상</td></tr>
     <tr><td>고주파 인덕턴스 영역 (−Z″ &lt; 0)</td><td>기본은 피팅에서 제외. L 후보는 교차점 근처 점으로 L 값을 정함.
-      이 영역은 케이블·장비 효과가 섞여 단순 L 로 잘 맞지 않아, 넣으면 반원 쪽과 R0 가 흔들림 (고급 → '인덕턴스 영역 점도 사용'으로 넣을 수 있음)</td></tr>
+      이 영역은 케이블·장비 효과가 섞여 단순 L 로 잘 맞지 않아, 넣으면 반원 쪽과 R0 가 흔들림</td></tr>
     <tr><td>성분 순서</td><td>시정수(τ) 크기로 자동 정렬 — 작은 τ = 고주파 쪽</td></tr>
   </table></div>
 </section>
@@ -255,12 +252,12 @@ summary{cursor:pointer;font-weight:600}
     pipeline.py        후보 조립 → 피팅(병렬) → 순위·판정
     series.py          여러 측정 비교: 추세, 이탈점, Arrhenius
     group.py           묶음 정보로 회로 순위 정하기
-    autoeis_bridge.py  AutoEIS 탐색·베이지안, 표기 변환
+    export.py          엑셀 내보내기 (요약 · 전체 파라미터 · 추세·Ea · 방법 · 그림용 데이터)
     server.py          로컬 웹 서버 (FastAPI)
   web/index.html       화면</pre>
   </details>
   <details><summary>사용한 라이브러리와 라이선스</summary>
-    <p>impedance.py (MIT), pyimpspec (GPLv3), galvani (GPLv3), AutoEIS, scipy, numpy, pandas, FastAPI, Plotly.
+    <p>impedance.py (MIT), pyimpspec (GPLv3), galvani (GPLv3), scipy, numpy, pandas, FastAPI, Plotly.
       GPLv3 라이브러리를 쓰므로 BEAF를 외부에 공개 배포할 때는 소스 코드와 함께 GPLv3로 배포하는 것이 안전합니다.
       연구실 안에서 쓰거나 동료에게 나눠 주는 데는 제약이 없습니다.</p>
   </details>

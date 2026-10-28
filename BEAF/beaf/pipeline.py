@@ -24,15 +24,16 @@ _POOL = None
 
 
 def _fit_job(job):
-    circuit, f, Z, peaks, n_starts, noise, p0 = job
+    circuit, f, Z, peaks, n_starts, noise, p0 = job[:7]
+    bounds = job[7] if len(job) > 7 else None            # 예: {"R0": (R_HF, R_HF)} = x절편 고정
     try:
         if p0 is not None:
             # 외부(AutoEIS 등)에서 받은 초기값과 BEAF 자체 초기값 둘 다 출발점으로 시도
-            a = fit_circuit(circuit, f, Z, p0=p0, drt_peaks=peaks, n_starts=n_starts, kk_noise_pct=noise)
-            b = fit_circuit(circuit, f, Z, drt_peaks=peaks, n_starts=n_starts, kk_noise_pct=noise)
+            a = fit_circuit(circuit, f, Z, p0=p0, drt_peaks=peaks, n_starts=n_starts, kk_noise_pct=noise, bounds=bounds)
+            b = fit_circuit(circuit, f, Z, drt_peaks=peaks, n_starts=n_starts, kk_noise_pct=noise, bounds=bounds)
             ok = [x for x in (a, b) if x.get("ok")]
             return min(ok, key=lambda x: x["chi2"]) if ok else a
-        return fit_circuit(circuit, f, Z, drt_peaks=peaks, n_starts=n_starts, kk_noise_pct=noise)
+        return fit_circuit(circuit, f, Z, drt_peaks=peaks, n_starts=n_starts, kk_noise_pct=noise, bounds=bounds)
     except Exception as e:                                # noqa: BLE001
         return {"ok": False, "circuit": circuit, "error": str(e)}
 
@@ -218,7 +219,7 @@ def display_names(fit, meta):
     labels = arc_labels(meta, len(arcs) + n_sp)[:len(arcs)]    # Gerischer · TLM 은 저주파 과정 자리를 차지
     m = {}
     for a, lab in zip(arcs, labels):
-        tag = lab[2:]
+        tag = lab[2:] if lab.startswith("R_") else lab[1:]       # R_SEI → SEI, R1 → 1
         m[a["R_name"]] = lab
         m[a["Q_name"] + "_0"] = f"Q_{tag}"
         m[a["Q_name"] + "_1"] = f"α_{tag}"
@@ -235,16 +236,219 @@ def display_names(fit, meta):
     return [m.get(n, n) for n in names], labels
 
 
+# ---------------------------------------------------------------- 피팅 구간 (시작점 · 끝점)
+FIX_REL = 1e-6          # '고정' 파라미터 범위 (±0.0001%)
+
+
+def _fmt_hz(f):
+    return f"{f / 1e3:.3g} kHz" if f >= 1e3 else f"{f:.3g} Hz" if f >= 1 else f"{f * 1e3:.3g} mHz"
+
+
+def fit_variants(freq, Z, rng, st):
+    """
+    피팅 구간 후보와 DRT 구간.
+      연구실 방식(기본, range_mode='lab')
+        끝점  : 반원 끝 = 골짜기(Warburg 로 꺾이는 최저점) 바로 앞 점
+        시작점: 인덕턴스 영역(−Z''<0)이 있으면 두 가지를 모두 피팅해 더 잘 맞는 쪽을 채택
+          A) x절편 아래 인덕티브 첫 점까지 포함 + L
+          B) 인덕티브 점 없이, R0 를 x절편 값(R_HF)으로 고정
+      직접 설정(range_mode='manual'): 사용자가 고른 시작점 · 끝점 · 뺄 점
+    반환: (variants, drt_mask)
+    """
+    mim = -Z.imag
+    n = len(freq)
+    man = st.get("manual") or {}
+    if st.get("range_mode") == "manual" and man.get("start") is not None and man.get("end") is not None:
+        s, e = sorted((int(man["start"]), int(man["end"])))
+        s, e = max(0, s), min(n - 1, e)
+        mask = np.zeros(n, bool)
+        mask[s:e + 1] = True
+        for i in man.get("exclude") or []:
+            if 0 <= int(i) < n:
+                mask[int(i)] = False
+        has_ind = bool(np.any(mask & (mim <= 0)))
+        label = f"직접 설정 {_fmt_hz(freq[s])} → {_fmt_hz(freq[e])} ({int(mask.sum())}점)"
+        bounds = None
+        if man.get("fix_R0") and rng["has_inductive"]:
+            R_HF, _ = analysis.x_intercept(freq, Z, rng["start"])
+            bounds = {"R0": (R_HF * (1 - FIX_REL), R_HF * (1 + FIX_REL))}
+            label += f", R0 = x절편 {R_HF:.4g} Ω 고정"
+        if has_ind:
+            label += ", 인덕티브 점 포함 → L 사용"
+        # 끝점이 Warburg 골짜기를 넘어가면 확산 꼬리까지 피팅 → 꼬리 후보(Q · Wo · W) 자동 추가
+        tail_in = rng["has_tail"] and e > rng["valley"]
+        if tail_in:
+            label += ", 확산 꼬리 포함 → W 등 자동 비교"
+        v = {"key": "manual", "label": label, "mask": mask, "L_opts": (True,) if has_ind else (False,), "bounds": bounds,
+             "mode": "full" if tail_in else "arcs"}
+        drt_mask = mask & (mim > 0)
+        if tail_in:                                       # DRT 는 반원 쪽만 (꼬리는 반원 수를 부풀림)
+            drt_mask &= np.arange(n) <= rng["arc_end"]
+        return [v], drt_mask
+
+    base = analysis.fit_mask(freq, Z, st["mode"], st["fmin"], st["fmax"], st["exclude_idx"])
+    drt_mask = analysis.fit_mask(freq, Z, "arcs", st["fmin"], st["fmax"], st["exclude_idx"])
+    if st.get("with_L"):                                  # (예전 옵션) 인덕턴스 영역 점 전부 + L
+        m = base.copy()
+        m[:rng["start"]] = True if st["fmax"] is None else (freq[:rng["start"]] <= st["fmax"])
+        return [{"key": "all_L", "label": "인덕턴스 영역 점 전부 + L", "mask": m, "L_opts": (True,), "bounds": None}], drt_mask
+    if rng["has_inductive"]:
+        i0 = rng["first_inductive"]
+        mA = base.copy()
+        if (st["fmax"] is None or freq[i0] <= st["fmax"]) and i0 not in (st["exclude_idx"] or []):
+            mA[i0] = True
+        R_HF, _ = analysis.x_intercept(freq, Z, rng["start"])
+        return [
+            {"key": "L", "label": f"인덕티브 첫 점({_fmt_hz(freq[i0])}) 포함 + L", "mask": mA, "L_opts": (True,), "bounds": None},
+            {"key": "R0fix", "label": f"x절편 고정 (R0 = {R_HF:.4g} Ω)", "mask": base, "L_opts": (False,),
+             "bounds": {"R0": (R_HF * (1 - FIX_REL), R_HF * (1 + FIX_REL))}},
+        ], drt_mask
+    L_opts = (False, True) if st["auto_L"] else (False,)
+    return [{"key": "plain", "label": "자동 구간 (인덕턴스 영역 없음)", "mask": base, "L_opts": L_opts, "bounds": None}], drt_mask
+
+
+ENDPOINT_X, ENDPOINT_MIN = 4.0, 3.0      # 끝점 이탈 허용: max(4 × 전체 잔차, 3 %) (|Z| 대비)
+
+
+def endpoint_flags(fit, f, Z):
+    """
+    사용자가 고른(또는 자동으로 정한) 구간의 첫 점 · 끝 점을 피팅 곡선이 지나는지.
+    전체 잔차에 비해 끝점만 크게 벗어나면 '구간을 다 설명하지 못한 해' → 탈락
+      (예: x절편에 R0 를 고정하면 인덕턴스 영향이 남은 첫 점을 지나지 못함 — 3MPF 40 °C 에서 9 %)
+    """
+    if not fit.get("ok"):
+        return []
+    Zf = np.array(fit["Zfit"][0]) + 1j * np.array(fit["Zfit"][1])
+    d = np.abs(Zf - Z) / np.abs(Z) * 100
+    lim = max(ENDPOINT_X * fit["rms_pct"], ENDPOINT_MIN)
+    out = []
+    hz = lambda x: f"{x / 1e3:.3g} kHz" if x >= 1e3 else f"{x:.3g} Hz"  # noqa: E731
+    if d[0] > lim:                                    # 시작점: 반드시 지나야 함 → 탈락
+        out.append({"msg": f"피팅 곡선이 시작점({hz(f[0])})을 지나지 않음 ({d[0]:.1f}% 벗어남, 허용 {lim:.1f}%)",
+                    "severe": True, "endpoint": True})
+    if d[-1] > lim:
+        # 끝점: 반원 회로로는 Warburg 가 섞인 마지막 점을 못 지나는 것이 정상일 수 있음 → 경고 + 방법 안내
+        #   (탈락시키면 오히려 엉뚱한 회로가 뽑힘: 합성 데이터에서 잔차 0.6 % → 2.6 %)
+        out.append({"msg": f"피팅 곡선이 끝점({hz(f[-1])})을 {d[-1]:.1f}% 벗어남 — 마지막 점에 확산(Warburg) 응답이 섞임. "
+                           f"끝점을 앞으로 당기거나 '확산 꼬리까지 피팅'을 켜세요",
+                    "severe": False, "endpoint": True})
+    return out
+
+
+def fit_lines(fit, f, f_data_max=None):
+    """
+    그림용 곡선: line = 피팅 구간 (200점), line_ext = 고주파 쪽 연장 (구간 밖, 점선으로 표시)
+      L 이 있는 회로 → 측정의 최고 주파수까지 (인덕턴스 영역 점을 따라감)
+      L 이 없는 회로 → 1000배 높은 주파수까지 (곡선이 R0 = 실수축 절편에 닿는 것을 보여 줌)
+    """
+    circ = Circuit(fit["circuit"])
+    fl = np.logspace(np.log10(f.max()), np.log10(f.min()), 200)
+    Zl = circ.Z(fit["values"], fl)
+    fit["line"] = {"freq": fl.tolist(), "re": Zl.real.tolist(), "im": Zl.imag.tolist()}
+    has_L = any(k in ("L", "La") for _, k, _ in circ.elements)
+    hi = (f_data_max if f_data_max and f_data_max > f.max() * 1.01 else None) if has_L else f.max() * 1e3
+    fit["line_ext"] = None
+    if hi:
+        fe = np.logspace(np.log10(hi), np.log10(f.max()), 60)
+        Ze = circ.Z(fit["values"], fe)
+        fit["line_ext"] = {"freq": fe.tolist(), "re": Ze.real.tolist(), "im": Ze.imag.tolist()}
+
+
+def finish_fit(fit, base, f, meta, peaks, peaks_weak, f_data_max=None, Z=None):
+    """재분석 결과를 자동 분석 결과와 같은 형태로 (판정 · DRT 대조 · 표시 이름 · 곡선)"""
+    fit.update({k: v for k, v in base.items() if k in ("n_arcs", "tail", "L", "desc", "source", "custom", "shape")})
+    fit["flags"] = diagnose(fit, f) + (endpoint_flags(fit, f, Z) if Z is not None else [])
+    if fit.get("ok"):
+        more, fit["drt_supported"] = drt_crosscheck(fit, peaks, peaks_weak)
+        fit["flags"] += more
+    fit["valid"] = fit.get("ok", False) and not any(x["severe"] for x in fit["flags"])
+    if fit.get("ok"):
+        fit["display_names"], fit["arc_labels"] = display_names(fit, meta)
+        fit["arc_curves"] = arc_curves(fit, f)
+        fit_lines(fit, f, f_data_max)
+    return fit
+
+
+def with_L(circuit, on):
+    """회로 앞에 직렬 L 을 붙이거나 뗌 (L0-...)"""
+    core = re.sub(r"^L\d*-", "", circuit.replace(" ", ""))
+    return ("L0-" + core) if on else core
+
+
+def suggest(specs, meta, mode="arcs"):
+    """
+    분석 전에 셀 정보 + DRT 만으로 회로 후보를 추천 (사용자가 직접 고를 때 보여 줌)
+    specs: [Spectrum] — 측정마다 DRT 반원 수를 세고, 가장 많이 나온 수를 기준으로 추천
+    """
+    meta = {**DEFAULT_META, **(meta or {})}
+    jobs = []
+    for sp in specs:
+        rng = analysis.auto_range(sp.freq, sp.Z)
+        m = analysis.fit_mask(sp.freq, sp.Z, "arcs")
+        fa, Za = sp.freq[m], sp.Z[m]
+        jobs.append((sp, rng, fa, Za, [submit(analysis.drt_once_safe, fa, Za, lam) for lam in analysis.LAMBDAS]))
+    files, counts, has_tail = [], {}, False
+    for sp, rng, fa, Za, futs in jobs:
+        raw = []
+        for fu, lam in zip(futs, analysis.LAMBDAS):
+            try:
+                raw.append(fu.result() if fu is not None else analysis.drt_once_safe(fa, Za, lam))
+            except Exception:                             # noqa: BLE001
+                raw.append(analysis.drt_once_safe(fa, Za, lam))
+        d = analysis.drt_analysis(fa, Za, raw, tail=rng["has_tail"]) if len(fa) >= 5 else {"ok": False}
+        n = d["n_robust"] if d.get("ok") else None
+        has_tail |= rng["has_tail"]
+        files.append({"name": sp.name, "n_drt": n, "peaks_hz": [q["f"] for q in d.get("peaks", [])] if d.get("ok") else [],
+                      "has_tail": rng["has_tail"], "has_inductive": rng["has_inductive"]})
+        if n is not None:
+            counts[n] = counts.get(n, 0) + 1
+    n_main = max(counts, key=lambda k: (counts[k], -k)) if counts else 0
+    n_exp = len(expected_arcs(meta))
+    cands = make_candidates(meta, n_main, mode, has_tail, (False,), nested=True)
+    cands += shape_candidates(n_main, mode, has_tail, (False,))
+    out = []
+    for c in cands:
+        n = c.get("n_arcs")
+        k = 4 if c.get("shape") else 0 if n == max(n_main, 1) else 1 if n == n_exp and n_exp else 3
+        why = {0: f"DRT 반원 수({n_main}개)와 같음", 1: "셀 정보로 예상한 반원 수", 3: "DRT 반원 수 ±1",
+               4: "반원 대신 비대칭 과정 요소 (Gerischer · 다공성 전극)"}[k]
+        if "중첩" in c["desc"]:
+            k, why = 2, "SEI 를 통과한 뒤 전하전달 (중첩형)"
+        support = sum(1 for f in files if f["n_drt"] == n) if not c.get("shape") else None
+        out.append({"circuit": c["circuit"], "desc": c["desc"], "n_arcs": n, "rank": k, "why": why,
+                    "support": support, "tail": c.get("tail")})
+    out.sort(key=lambda x: (x["rank"], x["tail"] is not None, x["n_arcs"] or 0))
+    return {"files": files, "n_drt": n_main, "counts": counts, "n_expected": n_exp, "candidates": out}
+
+
+def _drt_ends_at_valley(freq, rng, fa):
+    """DRT 구간이 Warburg 골짜기 바로 앞(0.3 decade 이내)에서 끝나면 → 저주파 끝 피크는 Warburg 몫으로 봄"""
+    if not rng["has_tail"] or len(fa) == 0:
+        return False
+    fv = freq[rng["valley"]]
+    return bool(fv * 0.999 <= fa.min() <= fv * 10 ** 0.3)
+
+
+def _common_score(fit, f, Z):
+    """두 구간 후보를 공통 점에서 비교: BIC = N ln(χ²/N) + k ln N (고정 파라미터는 k 에서 빠져 있음)"""
+    Zm = Circuit(fit["circuit"]).Z(fit["values"], f)
+    d = (Zm - Z) / np.abs(Z)
+    chi2 = float(np.sum(d.real ** 2 + d.imag ** 2))
+    N = 2 * len(f)
+    return {"rms_pct": float(np.sqrt(chi2 / N) * 100), "bic": float(N * np.log(max(chi2, 1e-300) / N) + fit["k"] * np.log(N))}
+
+
 # ---------------------------------------------------------------- 전체 분석
 def analyze(spec, meta=None, settings=None, progress=None):
     """
     spec: eis_io.Spectrum
-    settings: mode('arcs'|'full'), fmin, fmax, exclude_idx, with_L, n_starts, custom(회로 문자열 목록)
+    settings: mode('arcs'|'full'), fmin, fmax, exclude_idx, n_starts, custom(회로 문자열 목록),
+              range_mode('lab'|'manual'), manual({start, end, exclude, fix_R0}: 원자료 index)
     """
     meta = {**DEFAULT_META, **(meta or {})}
     st = {"mode": "arcs", "fmin": None, "fmax": None, "exclude_idx": [], "with_L": False,
           "n_starts": 8, "top_refit": 4, "custom": [], "nested": False, "auto_L": True,
-          "quality_limit": 3.0, "target_rms_pct": 2.0, **(settings or {})}
+          "quality_limit": 3.0, "target_rms_pct": 2.0, "range_mode": "lab", "manual": None, **(settings or {})}
     freq_all, Z_all = spec.freq, spec.Z
 
     def step(msg):
@@ -259,15 +463,11 @@ def analyze(spec, meta=None, settings=None, progress=None):
     # KK 는 오래 걸려서(1~4 s) 다른 프로세스에서 피팅과 동시에 돌림
     kk_future = submit(analysis.kk_test, freq_all[kk_m], Z_all[kk_m])
 
-    # 2) 피팅 구간
-    mask = analysis.fit_mask(freq_all, Z_all, st["mode"], st["fmin"], st["fmax"], st["exclude_idx"])
-    if st["with_L"]:
-        mask[:rng["start"]] = True if st["fmax"] is None else (freq_all[:rng["start"]] <= st["fmax"])
-    f, Z = freq_all[mask], Z_all[mask]
+    # 2) 피팅 구간 후보 (연구실 방식: 시작점 두 가지 / 직접 설정: 하나)
+    variants, arc_m = fit_variants(freq_all, Z_all, rng, st)
 
-    # 3) DRT (반원 구간에서)
+    # 3) DRT (반원 구간에서, 인덕턴스 점 제외)
     step("DRT")
-    arc_m = analysis.fit_mask(freq_all, Z_all, "arcs", st["fmin"], st["fmax"], st["exclude_idx"])
     # DRT 는 λ 3개를 다른 프로세스에서 동시에 (KK 와도 동시에) 계산 — 가장 오래 걸리는 단계
     fa, Za = freq_all[arc_m], Z_all[arc_m]
     futs = [submit(analysis.drt_once_safe, fa, Za, lam) for lam in analysis.LAMBDAS]
@@ -277,94 +477,135 @@ def analyze(spec, meta=None, settings=None, progress=None):
             raw_runs.append(fu.result() if fu is not None else analysis.drt_once_safe(fa, Za, lam))
         except Exception:                             # noqa: BLE001
             raw_runs.append(analysis.drt_once_safe(fa, Za, lam))
-    drt = analysis.drt_analysis(fa, Za, raw_runs)
+    drt = (analysis.drt_analysis(fa, Za, raw_runs, tail=_drt_ends_at_valley(freq_all, rng, fa))
+           if len(fa) >= 5
+           else {"ok": False, "error": "DRT 구간 점이 너무 적음"})
     peaks = drt["peaks"] if drt.get("ok") else []
-    peaks_weak = [q for q in drt.get("peaks_all", []) if not q["edge"]] if drt.get("ok") else []
+    peaks_weak = [q for q in drt.get("peaks_all", []) if not q["edge"] and not q.get("warburg")] if drt.get("ok") else []
     n_drt = len(peaks)
-
-    # 4) 후보
-    if st["with_L"]:
-        L_opts = (True,)                      # 인덕턴스 영역 점까지 쓰면 L 은 필수
-    elif st["auto_L"] and rng["has_inductive"] and st.get("L_if_inductive", False):   # 기본값 결정 대기 (tests/compare_L_policy.py)
-        # −Z'' < 0 점이 있으면 L 이 있다는 직접 증거 → L 없는 회로는 R0 를 과대평가 (교차점이 반원 쪽으로 밀림)
-        L_opts = (True,)
-    elif st["auto_L"]:
-        L_opts = (False, True)                # L 도 회로 성분 중 하나: 항상 있는/없는 후보 모두
-    else:
-        L_opts = (False,)
-    cands = make_candidates(meta, n_drt, st["mode"], rng["has_tail"], L_opts, st["nested"])
-    if st.get("shapes", True):
-        cands += shape_candidates(n_drt, st["mode"], rng["has_tail"], L_opts)
-    for c in st["custom"]:
-        # 문자열(저장한 회로) 또는 {"circuit", "p0", "desc", "source"} (AutoEIS 탐색 결과 등)
-        c = {"circuit": c} if isinstance(c, str) else dict(c)
-        if not c.get("circuit") or any(c["circuit"] == x["circuit"] for x in cands):
-            # 같은 회로가 이미 있으면 출처만 덧붙임
-            for x in cands:
-                if x["circuit"] == c.get("circuit") and c.get("source"):
-                    x["source"] = (x.get("source", "BEAF") + " + " + c["source"])
-            continue
-        try:
-            n_arcs = len(Circuit(c["circuit"]).rq_arcs())
-        except Exception:                             # noqa: BLE001
-            n_arcs = None
-        cands.append({"circuit": c["circuit"], "n_arcs": n_arcs, "tail": None, "custom": True,
-                      "desc": c.get("desc", "사용자 회로"), "source": c.get("source", "사용자"),
-                      "p0": c.get("p0"), "L": bool(re.search(r"(?<![A-Za-z])L\d", c["circuit"]))})
-
-    # 5) 피팅: 1단계 모든 후보를 시작점 3개로 빠르게 → 2단계 상위 후보만 전체 시작점
-    noise = None                                      # 품질 비율은 KK 결과가 나온 뒤 계산
-
-    def evaluate(c, fit):
-        fit.update({k: v for k, v in c.items() if k not in ("circuit", "p0")})
-        fit["flags"] = diagnose(fit, f)
-        if fit.get("ok"):
-            more, fit["drt_supported"] = drt_crosscheck(fit, peaks, peaks_weak)
-            fit["flags"] += more
-        fit["valid"] = fit.get("ok", False) and not any(x["severe"] for x in fit["flags"])
-        return fit
 
     rank_key = lambda r: (not r.get("ok"), not r.get("valid"), not r.get("drt_supported", True),  # noqa: E731
                           r.get("bic", np.inf))
-    step(f"피팅 1단계: 후보 {len(cands)}개")
-    n_quick = min(3, st["n_starts"])
-    jobs = [(c["circuit"], f, Z, peaks, n_quick, noise, c.get("p0")) for c in cands]
-    results = [evaluate(c, fit) for c, fit in zip(cands, run_fits(jobs))]
-    if st["n_starts"] > n_quick:
-        top = sorted(range(len(results)), key=lambda i: rank_key(results[i]))[:st["top_refit"]]
-        step(f"피팅 2단계: 상위 {len(top)}개 × 시작점 {st['n_starts']}개")
-        jobs = [(cands[i]["circuit"], f, Z, peaks, st["n_starts"], noise, cands[i].get("p0")) for i in top]
-        for i, fit in zip(top, run_fits(jobs)):
-            results[i] = evaluate(cands[i], fit)
-            results[i]["full_starts"] = True
 
-    # 추천 후보가 시도한 가장 많은 반원 수를 쓰면 → 반원이 더 있을 수 있으므로 하나 더 늘려 시도 (최대 MAX_ARCS)
-    for _ in range(MAX_ARCS):
-        okr = [r for r in results if r.get("ok") and not r.get("shape")]
-        if not okr:
-            break
-        best = min(okr, key=rank_key)
-        n_max = max(r.get("n_arcs") or 0 for r in okr)
-        if best.get("n_arcs") != n_max or n_max >= MAX_ARCS:
-            break
-        extra = [c for c in make_candidates(meta, 0, st["mode"], rng["has_tail"], L_opts, False, (n_max + 1,))
-                 if c["n_arcs"] == n_max + 1 and all(c["circuit"] != x["circuit"] for x in cands)]
-        if not extra:
-            break
-        step(f"반원 {n_max + 1}개 후보 추가")
-        jobs = [(c["circuit"], f, Z, peaks, st["n_starts"], noise, None) for c in extra]
-        for c, fit in zip(extra, run_fits(jobs)):
-            cands.append(c)
-            results.append(evaluate(c, fit))
+    def run_variant(v, tag=""):
+        mask, L_opts, bounds = v["mask"], v["L_opts"], v["bounds"]
+        vmode = v.get("mode", st["mode"])
+        f, Z = freq_all[mask], Z_all[mask]
+        # 4) 후보
+        only = st.get("only")                             # 사용자가 고른 회로 하나만 피팅 (L 은 구간 방식에 맞춰 붙이거나 뗌)
+        if only:
+            cands = []
+            for wl in L_opts:
+                c = with_L(only, wl)
+                if all(c != x["circuit"] for x in cands):
+                    cands.append({"circuit": c, "n_arcs": len(Circuit(c).rq_arcs()), "tail": None, "L": wl,
+                                  "custom": True, "desc": "직접 고른 회로", "source": "사용자 선택"})
+        else:
+            cands = make_candidates(meta, n_drt, vmode, rng["has_tail"], L_opts, st["nested"])
+        if st.get("shapes", True) and not only:
+            cands += shape_candidates(n_drt, vmode, rng["has_tail"], L_opts)
+        for c in ([] if only else st["custom"]):
+            # 문자열(저장한 회로) 또는 {"circuit", "p0", "desc", "source"} (AutoEIS 탐색 결과 등)
+            c = {"circuit": c} if isinstance(c, str) else dict(c)
+            if not c.get("circuit") or any(c["circuit"] == x["circuit"] for x in cands):
+                # 같은 회로가 이미 있으면 출처만 덧붙임
+                for x in cands:
+                    if x["circuit"] == c.get("circuit") and c.get("source"):
+                        x["source"] = (x.get("source", "BEAF") + " + " + c["source"])
+                continue
+            try:
+                n_arcs = len(Circuit(c["circuit"]).rq_arcs())
+            except Exception:                             # noqa: BLE001
+                n_arcs = None
+            cands.append({"circuit": c["circuit"], "n_arcs": n_arcs, "tail": None, "custom": True,
+                          "desc": c.get("desc", "사용자 회로"), "source": c.get("source", "사용자"),
+                          "p0": c.get("p0"), "L": bool(re.search(r"(?<![A-Za-z])L\d", c["circuit"]))})
 
-    for fit in results:
-        if fit.get("ok"):
-            fit["display_names"], fit["arc_labels"] = display_names(fit, meta)
-            # 성분별 반원 (고주파부터 R 을 누적해 옆으로 이어 그림)
-            fit["arc_curves"] = arc_curves(fit, f)
-            fl = np.logspace(np.log10(f.max()), np.log10(f.min()), 200)
-            Zl = Circuit(fit["circuit"]).Z(fit["values"], fl)
-            fit["line"] = {"freq": fl.tolist(), "re": Zl.real.tolist(), "im": Zl.imag.tolist()}
+        # 5) 피팅: 1단계 모든 후보를 시작점 3개로 빠르게 → 2단계 상위 후보만 전체 시작점
+        def evaluate(c, fit):
+            fit.update({k: val for k, val in c.items() if k not in ("circuit", "p0")})
+            fit["flags"] = diagnose(fit, f) + endpoint_flags(fit, f, Z)
+            if fit.get("ok"):
+                more, fit["drt_supported"] = drt_crosscheck(fit, peaks, peaks_weak)
+                fit["flags"] += more
+            fit["valid"] = fit.get("ok", False) and not any(x["severe"] for x in fit["flags"])
+            return fit
+
+        step(f"피팅 1단계{tag}: 후보 {len(cands)}개")
+        n_quick = min(3, st["n_starts"])
+        jobs = [(c["circuit"], f, Z, peaks, n_quick, None, c.get("p0"), bounds) for c in cands]
+        results = [evaluate(c, fit) for c, fit in zip(cands, run_fits(jobs))]
+        if st["n_starts"] > n_quick:
+            top = sorted(range(len(results)), key=lambda i: rank_key(results[i]))[:st["top_refit"]]
+            step(f"피팅 2단계{tag}: 상위 {len(top)}개 × 시작점 {st['n_starts']}개")
+            jobs = [(cands[i]["circuit"], f, Z, peaks, st["n_starts"], None, cands[i].get("p0"), bounds) for i in top]
+            for i, fit in zip(top, run_fits(jobs)):
+                results[i] = evaluate(cands[i], fit)
+                results[i]["full_starts"] = True
+
+        # 추천 후보가 시도한 가장 많은 반원 수를 쓰면 → 반원이 더 있을 수 있으므로 하나 더 늘려 시도 (최대 MAX_ARCS)
+        for _ in range(0 if only else MAX_ARCS):
+            okr = [r for r in results if r.get("ok") and not r.get("shape")]
+            if not okr:
+                break
+            best = min(okr, key=rank_key)
+            n_max = max(r.get("n_arcs") or 0 for r in okr)
+            if best.get("n_arcs") != n_max or n_max >= MAX_ARCS:
+                break
+            extra = [c for c in make_candidates(meta, 0, vmode, rng["has_tail"], L_opts, False, (n_max + 1,))
+                     if c["n_arcs"] == n_max + 1 and all(c["circuit"] != x["circuit"] for x in cands)]
+            if not extra:
+                break
+            step(f"반원 {n_max + 1}개 후보 추가{tag}")
+            jobs = [(c["circuit"], f, Z, peaks, st["n_starts"], None, None, bounds) for c in extra]
+            for c, fit in zip(extra, run_fits(jobs)):
+                cands.append(c)
+                results.append(evaluate(c, fit))
+
+        for fit in results:
+            if fit.get("ok"):
+                fit["display_names"], fit["arc_labels"] = display_names(fit, meta)
+                # 성분별 반원 (고주파부터 R 을 누적해 옆으로 이어 그림)
+                fit["arc_curves"] = arc_curves(fit, f)
+                fit_lines(fit, f, float(freq_all.max()))
+        return results
+
+    # 피팅 구간 후보마다 회로 선택까지 → 공통 점에서 더 잘 맞는 구간을 채택
+    runs = []
+    for k, v in enumerate(variants):
+        tag = f" [{k + 1}/{len(variants)}: {v['label']}]" if len(variants) > 1 else ""
+        runs.append(run_variant(v, tag))
+    pick = 0
+    policy = None
+    if len(variants) > 1:
+        common = np.logical_and.reduce([v["mask"] for v in variants])
+        fc, Zc = freq_all[common], Z_all[common]
+        rows = []
+        for v, res in zip(variants, runs):
+            ok_v = order_candidates([r for r in res if r.get("ok")])
+            row = {"key": v["key"], "label": v["label"], "n_points": int(v["mask"].sum())}
+            if ok_v:
+                b = ok_v[0]
+                row.update({"circuit": b["circuit"], "valid": b["valid"], "drt_supported": b.get("drt_supported", True),
+                            "rms_pct": b["rms_pct"], **{f"{kk}_common": val for kk, val in _common_score(b, fc, Zc).items()}})
+            rows.append(row)
+        # 공통 점에서 BIC 가 낮은(더 잘 맞는) 쪽. DRT 일치는 BIC 차이가 10 미만으로 비슷할 때만 우선
+        #   (DRT 일치를 먼저 보면 잔차가 10배 나쁜 구간이 뽑히는 경우가 있었음: 3MPF 40 °C)
+        key = lambda i: (rows[i].get("circuit") is None, not rows[i].get("valid"), rows[i].get("bic_common", np.inf))  # noqa: E731
+        pick = min(range(len(rows)), key=key)
+        for i, row in enumerate(rows):
+            if (i != pick and row.get("valid") and row.get("drt_supported") and not rows[pick].get("drt_supported")
+                    and row.get("bic_common", np.inf) - rows[pick].get("bic_common", np.inf) < 10):
+                pick = i
+        for i, row in enumerate(rows):
+            row["chosen"] = i == pick
+        policy = {"mode": "lab", "variants": rows, "chosen": rows[pick]["key"],
+                  "note": "인덕티브 첫 점 포함(+L)과 x절편 고정 두 가지로 모두 피팅해, 공통 구간에서 BIC 가 낮은 쪽을 채택 "
+                          "(BIC 차이 10 미만이면 DRT 피크와 맞는 쪽)"}
+    else:
+        policy = {"mode": st.get("range_mode", "lab"), "variants": [{"key": variants[0]["key"], "label": variants[0]["label"],
+                  "n_points": int(variants[0]["mask"].sum()), "chosen": True}], "chosen": variants[0]["key"]}
+    mask, results = variants[pick]["mask"], runs[pick]
 
     try:
         kk = kk_future.result() if kk_future is not None else None
@@ -372,6 +613,7 @@ def analyze(spec, meta=None, settings=None, progress=None):
         kk = None
     if kk is None:
         kk = analysis.kk_test(freq_all[kk_m], Z_all[kk_m])
+    noise = None
     if kk.get("ok"):
         off = rng["start"]
         kk["suspect_idx"] = [i + off for i in kk["suspect_idx"]]
@@ -397,7 +639,7 @@ def analyze(spec, meta=None, settings=None, progress=None):
         status = "통과"
         if not rec["valid"]:
             status = "검토"
-            reasons.append("모든 후보에 물리적 문제가 있음 → 회로 직접 수정 또는 AutoEIS 탐색 권장")
+            reasons.append("모든 후보에 물리적 문제가 있음 → 피팅 구간이나 회로를 직접 골라 다시 분석 권장")
         qr = rec.get("quality_ratio")
         # 품질: 잔차 RMS 가 (KK 노이즈 × 배수) 와 (목표 잔차) 중 큰 값 이하이면 통과
         limit = max(st["quality_limit"] * (noise or 0), st["target_rms_pct"])
@@ -432,12 +674,13 @@ def analyze(spec, meta=None, settings=None, progress=None):
                 if status == "통과":
                     status = "검토"
 
-    r0_ref = r0_reference(freq_all, Z_all, rng, ok, rec)
+    others = [r for i, res in enumerate(runs) if i != pick for r in res if r.get("ok")]
+    r0_ref = r0_reference(freq_all, Z_all, rng, ok + others, rec)
 
     return {
         "name": spec.name, "meta": meta, "settings": st, "R0_ref": r0_ref,
         "freq": freq_all.tolist(), "Zre": Z_all.real.tolist(), "Zim": Z_all.imag.tolist(),
-        "mask": mask.tolist(), "range": rng, "kk": kk, "drt": drt, "n_drt": n_drt,
+        "mask": mask.tolist(), "range": rng, "fit_policy": policy, "kk": kk, "drt": drt, "n_drt": n_drt,
         "candidates": ranked, "recommended": rec["circuit"] if rec else None,
         "status": status, "reasons": reasons,
         "cycles": spec.cycles, "cycle": spec.cycle, "file_meta": spec.meta,
@@ -457,11 +700,7 @@ def r0_reference(freq, Z, rng, ok, rec):
     """
     if not rng.get("has_inductive") or rec is None:
         return None
-    i = rng["start"]
-    y0, y1 = -Z.imag[i - 1], -Z.imag[i]               # y0 ≤ 0 < y1
-    t = y0 / (y0 - y1) if y1 != y0 else 0.0
-    R_HF = float(Z.real[i - 1] + t * (Z.real[i] - Z.real[i - 1]))
-    f_x = float(10 ** (np.log10(freq[i - 1]) + t * (np.log10(freq[i]) - np.log10(freq[i - 1]))))
+    R_HF, f_x = analysis.x_intercept(freq, Z, rng["start"])
     has_L = any(n.startswith("L") for n in rec["names"])
     twin = rec if has_L else next((c for c in ok if c["circuit"] == "L0-" + rec["circuit"]), None)
     out = {"R_HF": R_HF, "f_cross": f_x, "rec_has_L": has_L,

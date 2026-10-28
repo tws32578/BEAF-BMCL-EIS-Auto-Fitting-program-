@@ -22,11 +22,17 @@ button.big{font-size:16px;padding:12px 28px;font-weight:600;border-radius:10px}
 button:disabled{opacity:.45;cursor:default}
 select,input{font:inherit;border:1px solid var(--line);border-radius:7px;padding:5px 8px;background:#fff;color:var(--ink)}
 label.chk{display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
-header{padding:16px 20px 4px;max-width:1280px;margin:0 auto;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+header{padding:16px 20px 4px;max-width:1760px;margin:0 auto;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 header h1{margin:0;font-size:20px}
 header span{color:var(--ink2);font-size:13px}
 header a.guide{margin-left:auto;font-size:13px;color:var(--accent);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:2px 12px}
-main{max-width:1280px;margin:0 auto;padding:8px 20px 60px}
+main{max-width:1760px;margin:0 auto;padding:8px 20px 40px;display:grid;grid-template-columns:minmax(360px,440px) minmax(0,1fr);gap:16px;align-items:start}
+.left{position:sticky;top:8px;max-height:calc(100vh - 16px);overflow:auto;padding-right:2px}
+.left .card{padding:14px 14px}
+.left .meta select{min-width:150px}
+.right{min-width:0}
+.placeholder{border:2px dashed var(--line);border-radius:var(--radius);padding:60px 20px;text-align:center;color:var(--ink2)}
+@media (max-width:1000px){main{grid-template-columns:1fr}.left{position:static;max-height:none;overflow:visible}}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px}
 h2{font-size:15px;margin:0 0 12px;display:flex;gap:8px;align-items:center}
 h2 .n{display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--ink);color:#fff;font-size:12px;align-items:center;justify-content:center}
@@ -48,11 +54,10 @@ tr.off td{color:#a3aab6}
 .chip{display:inline-block;font-size:11px;padding:1px 8px;border-radius:99px;background:var(--soft);color:var(--ink2);white-space:nowrap}
 .chip.ok{background:var(--ok-soft);color:var(--ok)} .chip.warn{background:var(--warn-soft);color:var(--warn)}
 .chip.bad{background:var(--bad-soft);color:var(--bad)} .chip.run{background:var(--accent-soft);color:var(--accent)}
-.chip.ae{background:#efe7fb;color:#7a3fc2}
 .meta{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end}
 .meta label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--ink2)}
 .meta select{min-width:170px}
-.go{display:flex;align-items:center;gap:16px;margin:4px 0 18px}
+.go{display:flex;align-items:center;gap:12px;margin:4px 0 14px;flex-wrap:wrap}
 .progress{flex:1;height:8px;background:var(--soft);border-radius:99px;overflow:hidden;max-width:420px;display:none}
 .progress div{height:100%;background:var(--accent);width:0;transition:width .3s}
 .tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:8px;flex-wrap:wrap}
@@ -61,7 +66,7 @@ tr.off td{color:#a3aab6}
 .plot{height:420px}
 .opts{display:flex;gap:14px;font-size:12.5px;color:var(--ink2);margin:6px 0;flex-wrap:wrap;align-items:center}
 .grid2{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px}
-@media (max-width:1100px){.grid2{grid-template-columns:1fr}}
+@media (max-width:1500px){.grid2{grid-template-columns:1fr}}
 .reasons{margin:6px 0 0;padding-left:18px;color:var(--ink2);font-size:13px}
 .kpi{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
 .kpi span{padding:4px 12px;border-radius:8px;background:var(--soft);font-size:13px}
@@ -69,9 +74,6 @@ tr.off td{color:#a3aab6}
 .circ{font-family:Consolas,"D2Coding",monospace;font-size:12px}
 .flags{font-size:11.5px;color:var(--warn)} .flags.sev{color:var(--bad)}
 details>summary{cursor:pointer;color:var(--ink2);font-size:13px;margin:4px 0}
-details.adv>summary{font-size:14px;color:var(--ink);font-weight:600}
-.advgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px}
-@media (max-width:1000px){.advgrid{grid-template-columns:1fr}}
 .box{border:1px solid var(--soft);border-radius:8px;padding:12px}
 .box h4{margin:0 0 8px;font-size:13px}
 .settings{display:flex;flex-wrap:wrap;gap:12px;align-items:center;font-size:13px}
@@ -94,20 +96,73 @@ td.out{background:var(--bad-soft);color:var(--bad);font-weight:600}
 .bar{display:flex;height:10px;border-radius:99px;overflow:hidden;margin:6px 0 2px;max-width:520px}
 .bar div{height:100%}
 button.x{border:none;padding:0 4px;background:none;color:var(--ink2)}
+.modal-bg{position:fixed;inset:0;background:rgba(20,24,33,.45);z-index:40;display:none;align-items:center;justify-content:center;padding:16px}
+.modal-bg.on{display:flex}
+.modal{background:var(--panel);border-radius:12px;width:min(1080px,100%);max-height:calc(100vh - 32px);overflow:auto;padding:18px 20px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.modal h3{font-size:16px;margin:0 0 12px}
+.choice{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:760px){.choice{grid-template-columns:1fr}}
+.choice label{display:block;border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer}
+.choice label.on{border-color:var(--accent);background:var(--accent-soft)}
+.choice b{font-size:14px} .choice .hint{display:block;margin-top:4px}
+.choice input{margin-right:6px}
+.pickbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0 6px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:none;border-radius:0;border-right:1px solid var(--line);padding:6px 12px}
+.seg button:last-child{border-right:none}
+.seg button.on{background:var(--ink);color:#fff}
+.pickgrid{display:grid;grid-template-columns:220px minmax(0,1fr);gap:12px}
+@media (max-width:760px){.pickgrid{grid-template-columns:1fr}}
+.flist{border:1px solid var(--soft);border-radius:8px;max-height:440px;overflow:auto;font-size:12.5px}
+.flist div{padding:6px 10px;border-bottom:1px solid var(--soft);cursor:pointer;display:flex;justify-content:space-between;gap:6px}
+.flist div.on{background:var(--accent-soft)}
+.flist div span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mfoot{display:flex;gap:8px;justify-content:flex-end;align-items:center;margin-top:14px}
+.policy{font-size:12.5px;color:var(--ink2);margin:4px 0}
+.policy b{color:var(--ink)}
+.ftab{table-layout:fixed;width:100%}
+.ftab th,.ftab td{padding:5px 6px;white-space:nowrap;vertical-align:middle}
+.ftab td.nm{overflow:hidden;text-overflow:ellipsis}
+.ftab td input.v{width:100%;min-width:0;padding:2px 5px}
+.ftab select{padding:2px 4px;width:100%}
+.ftab .pts{color:var(--ink2);font-size:11px;margin-left:4px}
+.linkbtn{border:none;background:none;padding:2px 6px;color:var(--accent);font-size:12.5px}
+.linkbtn:hover{text-decoration:underline}
+.msec{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+.msec:first-of-type{border-top:none;padding-top:0;margin-top:0}
+.msec-h{font-size:13px;font-weight:600;color:var(--ink2);margin-bottom:8px;letter-spacing:.02em}
+.circsvg{display:block;color:var(--ink);overflow:visible}
+.circsvg line,.circsvg path,.circsvg rect,.circsvg circle{stroke:currentColor;stroke-width:1.4;fill:none}
+.circsvg circle{fill:var(--panel)}
+.circsvg text{fill:currentColor;stroke:none;font:9px var(--font)}
+.circsvg text.in{font-size:8px;font-weight:600}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.ccard{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;gap:6px;background:var(--panel)}
+.ccard:hover{border-color:#c5cad3}
+.ccard.on{border-color:var(--accent);background:var(--accent-soft)}
+.ccard .ec{font-family:Consolas,"D2Coding",monospace;font-size:12px;font-weight:600}
+.ccard .svgbox{min-height:54px;display:flex;align-items:center;justify-content:center}
+.clib{border:1px solid var(--line);border-radius:8px;max-height:220px;overflow:auto}
+.clib div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:10px;padding:6px 10px;cursor:pointer;font-size:12.5px;border-bottom:1px solid var(--soft)}
+.clib div:hover{background:#fafbfc}
+.clib div.on{background:var(--accent);color:#fff}
+.clib div.on .hint{color:#e7edfc}
+.clib .ec{font-family:Consolas,"D2Coding",monospace}
+.csel{display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:10px}
 </style>
 </head>
 <body>
 <header><h1>BEAF</h1><span>BMCL EIS Auto Fitting — 파일을 넣고 분석을 누르면 등가회로를 자동으로 고르고 피팅합니다</span><a class="guide" href="/guide" target="_blank">설명서</a></header>
 <main>
+<div class="left">
 
 <section class="card">
   <h2><span class="n">1</span>데이터</h2>
-  <div class="drop" id="drop"><b>EIS 파일을 끌어다 놓기</b> 또는 클릭해서 선택<br>
-    <span class="hint">.mpt · .mpr · .xlsx · .csv · .txt — 엑셀 한 파일에 측정이 여러 개 있어도 자동으로 나눕니다</span>
-    <input type="file" id="fileInput" multiple accept=".mpt,.mpr,.xlsx,.xlsm,.csv,.txt,.tsv,.dat" hidden></div>
-  <div class="row" style="margin-top:10px">
-    <input id="folderPath" class="grow" placeholder="또는 폴더 경로 붙여넣기 (하위 폴더 포함)"><button id="btnFolder">폴더 불러오기</button>
-  </div>
+  <div class="drop" id="drop"><b>파일이나 폴더를 끌어다 놓기</b><br>
+    <span class="hint">여러 개 · 하위 폴더까지 한 번에. EIS 파일(.mpt · .mpr · .xlsx · .csv · .txt)만 골라 넣고, 같은 측정의 .mpt/.mpr 은 하나만 씁니다</span>
+    <div class="row" style="justify-content:center;margin-top:10px"><button id="btnPickFiles" type="button">파일 선택</button><button id="btnPickDir" type="button">폴더 선택</button></div>
+    <input type="file" id="fileInput" multiple accept=".mpt,.mpr,.xlsx,.xlsm,.csv,.txt,.tsv,.dat" hidden>
+    <input type="file" id="dirInput" webkitdirectory multiple hidden></div>
   <div id="fileBox" style="margin-top:12px"></div>
 </section>
 
@@ -126,37 +181,54 @@ button.x{border:none;padding:0 4px;background:none;color:var(--ink2)}
   <span class="hint" id="progTxt"></span>
 </div>
 
-<div id="results"></div>
-
-<section class="card">
-  <details class="adv" id="adv"><summary>고급</summary>
-    <div class="advgrid">
-      <div class="box"><h4>피팅 설정</h4>
-        <div class="settings">
-          <label>구간 <select id="sMode"><option value="arcs">반원 구간 (확산 꼬리 제외)</option><option value="full">전체 (확산 요소 포함)</option></select></label>
-          <label>f<sub>max</sub> <input id="sFmax" type="number" placeholder="자동"></label>
-          <label>f<sub>min</sub> <input id="sFmin" type="number" placeholder="자동"></label>
-          <label class="chk"><input type="checkbox" id="sAutoL" checked> L 포함 후보도</label>
-          <label class="chk" title="−Z''<0 인 고주파 점까지 피팅에 넣고 모든 후보에 L 을 붙입니다. 이 영역은 보통 케이블·장비 효과가 섞여 단순 L 로 잘 안 맞고, 반원 쪽 피팅과 R0 를 흔들 수 있습니다 (실측 Gr‖Gr: R0 중앙값 22% 변화). 기본(끔)에서도 L 후보는 교차점 근처 점으로 L 을 정합니다."><input type="checkbox" id="sL"> 인덕턴스 영역 점도 사용</label>
-          <label class="chk"><input type="checkbox" id="sNested"> 중첩형 후보</label>
-          <label>시작점 <input id="sStarts" type="number" value="8" min="1" max="40"></label>
-          <label>목표 잔차 % <input id="sTarget" type="number" value="2" step="0.5"></label>
-          <label class="chk"><input type="checkbox" id="sGroup" checked> 같이 넣은 측정으로 회로 순위 정하기</label>
-          <label>ΔBIC 기준 <input id="sDBIC" type="number" value="10"></label>
-          <label class="chk"><input type="checkbox" id="sUC" checked> 저장한 회로도 후보로</label>
-        </div>
-        <div class="hint" style="margin-top:6px">설정을 바꾼 뒤 '분석'을 다시 누르면 적용됩니다.</div>
-      </div>
-      <div class="box"><h4>선택한 측정에 대해</h4><div id="advSel" class="hint"></div></div>
-    </div>
-  </details>
-</section>
+</div>
+<div class="right" id="results"></div>
 </main>
+<div class="modal-bg" id="mBg"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <h3 id="mTitle">자동 피팅 설정</h3>
+  <div class="msec"><div class="msec-h">1 · 피팅 구간</div>
+  <div class="choice" id="mChoice">
+    <label data-m="lab"><input type="radio" name="rmode" value="lab"><b>① 연구실 방식</b> <span class="chip ok">기본 · 자동</span>
+      <span class="hint">끝점: 반원 끝 (Warburg 로 꺾이는 최저점 바로 앞 점)<br>시작점: 인덕티브 첫 점까지 넣고 L 을 붙인 피팅과, x절편을 R0 로 고정한 피팅을 둘 다 돌려 더 잘 맞는 쪽을 보여 줍니다</span>
+      <span class="chk" style="margin-top:8px;display:flex"><input type="checkbox" id="mTail"> 확산 꼬리(Warburg)까지 피팅 <span class="hint" style="display:inline;margin:0 0 0 4px">— W · Wo · Q 꼬리 후보 자동 비교</span></span></label>
+    <label data-m="manual"><input type="radio" name="rmode" value="manual"><b>② 직접 설정</b>
+      <span class="hint">원자료에서 시작점 · 끝점을 직접 찍습니다. 인덕티브 점을 넣으면 L, 확산 꼬리까지 넣으면 W 등을 자동으로 붙입니다. 손대지 않은 측정은 연구실 방식으로 분석합니다</span></label>
+  </div>
+  <div id="mPick" style="display:none">
+    <div class="pickbar">
+      <span class="hint" id="mNext" style="font-size:13px"></span>
+      <label class="chk" title="인덕턴스 영역이 있는 데이터에서만: 피팅 동안 R0 를 −Z''=0 교차점의 실수부로 묶어 둡니다"><input type="checkbox" id="mFix"> R0 = x절편 고정</label>
+      <span style="flex:1"></span>
+      <button id="mAuto" title="이 측정을 연구실 방식으로 되돌림">자동값으로</button>
+      <button id="mAll" title="지금 측정의 시작·끝 주파수, 뺀 점, R0 고정을 다른 측정에도 (가장 가까운 주파수로)">모든 측정에 같은 주파수로 적용</button>
+    </div>
+    <div class="pickgrid">
+      <div class="flist" id="mFiles"></div>
+      <div><div id="mPlot" style="height:440px"></div>
+        <div class="opts" id="mInfo"></div>
+        <div class="opts">점 클릭: 첫 번째 = 시작점, 두 번째 = 끝점 (범위 밖은 자동 제외, 다시 누르면 새로 시작) · Shift+클릭 = 범위 안의 점 하나 빼기/넣기 · 드래그 = 이동 · 휠 = 확대/축소 · 더블클릭 = 전체 보기</div></div>
+    </div>
+  </div>
+  </div>
+  <div class="msec"><div class="msec-h">2 · 등가회로</div>
+    <div class="choice" id="cChoice">
+      <label data-c="auto"><input type="radio" name="cmode" value="auto"><b>자동</b> <span class="chip ok">기본</span>
+        <span class="hint">DRT 반원 수 ±1, 확산 꼬리, Gerischer · TLM 등 후보를 모두 피팅해 BIC · DRT 일치로 고릅니다</span></label>
+      <label data-c="manual"><input type="radio" name="cmode" value="manual"><b>직접 고르기</b>
+        <span class="hint">셀 정보와 DRT 로 추천한 회로, 또는 ZFit 같은 목록에서 하나를 골라 그 회로로만 피팅합니다 (모든 측정 공통)</span></label>
+    </div>
+    <div id="cPick" style="display:none"></div>
+  </div>
+  <div class="mfoot"><span class="hint" id="mNote" style="margin-right:auto"></span><button id="mCancel">취소</button><button id="mGo" class="primary">분석 시작</button></div>
+</div></div>
 <div class="busy" id="busy"><span class="spin on"></span><span id="busyTxt"></span></div>
 
 <script>
 const $ = s => document.querySelector(s);
 const state = { files: [], results: {}, sel: null, adopt: {}, manual: {}, opts: null, uc: [], tab: 'nyq', raw: {}, ae: {},
+  rmode: (()=>{ try{ return localStorage.getItem('beaf.rmode')||'lab' }catch(e){ return 'lab' } })(), ranges: {},
+  tail: (()=>{ try{ return localStorage.getItem('beaf.tail')==='1' }catch(e){ return false } })(),
+  circ: { mode: 'auto', sel: null, sug: null, sugKey: null, custom: '' }, hist: {}, histMsg: {},
   trend: { x: null, by: 'auto', param: null, tab: 'trend', circuit: {}, include: {}, data: null, log: false } };
 const fmt = (v, d=4) => v==null||!isFinite(v) ? '–' : (Math.abs(v)>=1e4||(Math.abs(v)<1e-3&&v!==0) ? v.toExponential(d-1) : (+v.toPrecision(d)).toString());
 const esc = s => String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -191,53 +263,137 @@ function statusChip(f){
   return `<span class="chip ${({'통과':'ok','검토':'warn'})[r.status]||'bad'}">${r.status}</span>`;
 }
 function renderFiles(){
-  const list = state.files;
-  if(!list.length){ $('#fileBox').innerHTML=''; $('#btnRun').disabled=true; $('#btnRun').textContent='분석'; return }
-  const vars = numericVars(okFiles()).slice(0,6), nOn = onFiles().length, nBad = list.filter(f=>!f.ok).length;
+  const list = state.files.filter(f=>f.ok), bad = state.files.filter(f=>!f.ok);
+  const noteH = state.loadNote ? `<div class="policy" style="margin:0 0 8px">${esc(state.loadNote)}</div>` : '';
+  const badH = bad.length ? `<details style="margin-top:6px"><summary style="color:var(--bad)">읽지 못한 파일 ${bad.length}개 — EIS 측정이 아니거나 형식이 다름</summary>
+    <div class="scroll" style="max-height:160px;margin-top:4px"><table class="ftab">${bad.map(f=>`<tr><td class="nm" title="${esc(f.path||f.name)}">${esc(f.path||f.name)}</td><td class="nm hint" title="${esc(f.error)}">${esc(f.error)}</td></tr>`).join('')}</table></div>
+    <button class="linkbtn" id="btnClearBad">이 목록 지우기</button></details>` : '';
+  if(!list.length){ $('#fileBox').innerHTML = noteH + badH; $('#btnRun').disabled=true; $('#btnRun').textContent='분석';
+    const cb = $('#btnClearBad'); if(cb) cb.onclick = () => { state.files = state.files.filter(f=>f.ok); renderFiles() }; return }
+  const vars = numericVars(okFiles()).slice(0,3), nOn = onFiles().length;
+  const anyCyc = okFiles().some(f=>f.cycles.length>1);
+  // 긴 파일명은 가운데를 줄임 (확장자 빼고, 앞 = 샘플, 뒤 = 온도·채널처럼 구별되는 부분)
+  const short = n => { const st = n.replace(/\.[^.]+$/, ''); return st.length > 24 ? st.slice(0,7) + '…' + st.slice(-14) : st };
+  const unitOf = k => state.opts.variables[k]?.unit || '';
+  const head = k => { const v = state.opts.variables[k]; return v ? v.label : varLabel(k) };
   $('#fileBox').innerHTML = `
-    <div class="row" style="margin-bottom:6px"><b>측정 ${okFiles().length}개</b>${nBad?` <span class="chip bad">읽기 실패 ${nBad}</span>`:''}
-      <span class="hint">값은 파일명·엑셀 열에서 읽은 추정 — 틀리면 고치세요. 체크를 끈 측정은 분석하지 않습니다</span>
-      <span style="flex:1"></span><button id="btnAll">모두 선택</button><button id="btnNone">모두 해제</button><button id="btnClear">비우기</button></div>
-    <div class="scroll"><table><tr><th></th><th>측정</th>${vars.map(k=>`<th class="num">${esc(varLabel(k))}</th>`).join('')}<th class="num">cycle</th><th class="num">데이터 점</th><th>상태</th><th></th></tr>
-    ${list.map((f,i)=>`<tr class="${f.use===false?'off':''}" data-i="${i}">
+    ${noteH}<div class="row" style="margin-bottom:4px"><b>측정 ${okFiles().length}개</b>${new Set(list.map(f=>f.meta.sample)).size>1?` <span class="hint">샘플 ${new Set(list.map(f=>f.meta.sample)).size}종</span>`:''}
+      <span style="flex:1"></span><button class="linkbtn" id="btnAll">모두 선택</button><button class="linkbtn" id="btnNone">모두 해제</button><button class="linkbtn" id="btnClear" style="color:var(--bad)">비우기</button></div>
+    ${vars.length?`<div class="hint" style="margin-bottom:6px">${vars.map(head).join(' · ')} 값은 파일명에서 읽은 추정 — 틀리면 칸을 고치세요</div>`:''}
+    <div class="scroll" style="overflow-x:hidden"><table class="ftab"><colgroup><col style="width:26px"><col>${vars.map(()=>'<col style="width:58px">').join('')}${anyCyc?'<col style="width:52px">':''}<col style="width:52px"><col style="width:24px"></colgroup>
+    <tr><th></th><th>측정</th>${vars.map(k=>`<th class="num" title="${esc(varLabel(k))}">${esc(head(k))}${unitOf(k)?`<span class="hint"> ${esc(unitOf(k))}</span>`:''}</th>`).join('')}${anyCyc?'<th class="num">cycle</th>':''}<th>상태</th><th></th></tr>
+    ${list.map(f=>[f, state.files.indexOf(f)]).map(([f,i])=>`<tr class="${f.use===false?'off':''}" data-i="${i}">
       <td>${f.ok?`<input type="checkbox" data-use ${f.use!==false?'checked':''}>`:''}</td>
-      <td title="${esc(f.path||f.file||'')}">${esc(f.name)}</td>
-      ${f.ok ? vars.map(k=>`<td class="num"><input class="v" data-k="${k}" value="${f.meta[k]??''}"></td>`).join('') : `<td colspan="${vars.length}" style="color:var(--bad)">${esc(f.error)}</td>`}
-      <td class="num">${f.ok && f.cycles.length>1 ? `<select data-cyc>${f.cycles.map(c=>`<option ${c===f.cycle?'selected':''}>${c}</option>`).join('')}</select>` : ''}</td>
-      <td class="num">${f.ok ? `${f.n}` : ''}</td><td>${statusChip(f)}</td><td><button class="x" data-del>✕</button></td></tr>`).join('')}
-    </table></div>`;
+      <td class="nm" title="${esc(f.name)}${f.ok?`
+데이터 ${f.n}점 · ${fmt(f.fmax,3)} → ${fmt(f.fmin,3)} Hz`:''}${f.path?`
+${esc(f.path)}`:''}${f.warn?`
+⚠ ${esc(f.warn)}`:''}">${f.warn?'<span style="color:var(--warn)">⚠ </span>':''}${esc(short(f.name))}</td>
+      ${f.ok ? vars.map(k=>`<td class="num"><input class="v" data-k="${k}" value="${f.meta[k]??''}"></td>`).join('') : `<td colspan="${vars.length + (anyCyc?1:0)}" class="nm" style="color:var(--bad)" title="${esc(f.error)}">${esc(f.error)}</td>`}
+      ${f.ok && anyCyc ? `<td class="num">${f.cycles.length>1 ? `<select data-cyc>${f.cycles.map(c=>`<option ${c===f.cycle?'selected':''}>${c}</option>`).join('')}</select>` : ''}</td>` : ''}
+      <td>${statusChip(f)}</td><td><button class="x" data-del title="목록에서 빼기">✕</button></td></tr>`).join('')}
+    </table></div>
+    <div class="hint" style="margin-top:4px">이름에 마우스를 올리면 전체 파일명 · 폴더 · 데이터 점 수 · 주파수 범위</div>${badH}`;
+  const cb = $('#btnClearBad'); if(cb) cb.onclick = () => { state.files = state.files.filter(f=>f.ok); renderFiles() };
   $('#btnRun').disabled = !nOn; $('#btnRun').textContent = `분석 (${nOn}개)`;
   $('#btnAll').onclick = () => { okFiles().forEach(f=>f.use=true); renderFiles() };
   $('#btnNone').onclick = () => { okFiles().forEach(f=>f.use=false); renderFiles() };
   $('#btnClear').onclick = () => { state.files.forEach(f=>f.id&&api('/api/file/'+f.id,undefined,'DELETE'));
-    Object.assign(state,{files:[],results:{},sel:null,adopt:{},manual:{},raw:{}}); state.trend.data=null; renderFiles(); renderResults() };
+    Object.assign(state,{files:[],results:{},sel:null,adopt:{},manual:{},raw:{},ranges:{},loadNote:''}); state.trend.data=null; renderFiles(); renderResults() };
 }
 $('#fileBox').addEventListener('change', e => {
   const tr = e.target.closest('tr[data-i]'); if(!tr) return; const f = state.files[+tr.dataset.i];
   if(e.target.dataset.use!==undefined){ f.use = e.target.checked; renderFiles() }
-  if(e.target.dataset.k){ const v=e.target.value.trim(); f.meta[e.target.dataset.k] = v==='' ? null : (isFinite(+v) ? +v : v) }
-  if(e.target.dataset.cyc!==undefined){ f.cycle = +e.target.value; delete state.results[f.id] }
+  if(e.target.dataset.k){ const v=e.target.value.trim(); f.meta[e.target.dataset.k] = v==='' ? null : (isFinite(+v) ? +v : v); if(e.target.dataset.k==='T_C' && f.warn){ f.warn = null; renderFiles() } }
+  if(e.target.dataset.cyc!==undefined){ f.cycle = +e.target.value; delete state.results[f.id]; delete state.ranges[f.id] }
 });
 $('#fileBox').addEventListener('click', e => {
   if(e.target.dataset.del===undefined) return; const i = +e.target.closest('tr[data-i]').dataset.i, f = state.files[i];
   if(f.id) api('/api/file/'+f.id, undefined, 'DELETE');
   state.files.splice(i,1); delete state.results[f.id]; if(state.sel===f.id) state.sel=null; renderFiles(); renderResults();
 });
-function addFiles(list){ list.forEach(f=>{ f.meta=f.meta||{}; f.use=true; state.files.push(f) }); renderFiles() }
-async function uploadFiles(fl){
-  const fd = new FormData(); [...fl].forEach(f=>fd.append('files', f)); busy('파일 읽는 중…');
-  try{ const r = await fetch('/api/upload',{method:'POST',body:fd}); addFiles(await r.json()) } catch(e){ alert(e.message) } finally{ busy() }
+/* ---------- 여러 파일 · 폴더 넣기 ---------- */
+const EIS_EXT = ['.mpt','.mpr','.xlsx','.xlsm','.csv','.txt','.tsv','.dat'];
+const extOf = n => { const m = n.toLowerCase().match(/\.[^.\/]+$/); return m ? m[0] : '' };
+const natCmp = (a,b) => a.localeCompare(b, undefined, {numeric:true, sensitivity:'base'});
+function sortFiles(){
+  // 샘플 → 온도 → 이름 순 (읽기 실패는 맨 뒤)
+  state.files.sort((a,b) => (!a.ok - !b.ok) || natCmp(String(a.meta?.sample??''), String(b.meta?.sample??''))
+    || ((a.meta?.T_C ?? 1e9) - (b.meta?.T_C ?? 1e9)) || natCmp(a.path||a.name, b.path||b.name));
+}
+// 폴더 이름의 온도와 파일명의 온도가 다르면 경고 (예: '25 oC' 폴더 안의 '..._10oC_C02')
+function tempWarn(f){
+  const dirs = (f.path||'').split('/').slice(0,-1), T = f.meta?.T_C;
+  for(const d of dirs){ const m = d.match(/(-?\d+(?:\.\d+)?)\s*(?:o|°|deg)?\s*C$/i);
+    if(m && T!=null && +m[1] !== T) return `폴더는 '${d}' 인데 파일명에서 읽은 온도는 ${T} °C — 어느 쪽이 맞는지 확인하고 온도 칸을 고치세요` }
+  return null;
+}
+function addFiles(list){ list.forEach(f=>{ f.meta=f.meta||{}; f.use=true; if(f.ok) f.warn = tempWarn(f); state.files.push(f) }); sortFiles(); renderFiles() }
+// 끌어다 놓은 항목 → [{file, path}] (폴더는 하위까지)
+async function collectDrop(dt){
+  const out = [], items = [...(dt.items||[])].map(it => it.webkitGetAsEntry && it.webkitGetAsEntry()).filter(Boolean);
+  if(!items.length) return [...dt.files].map(f => ({file:f, path:f.name}));
+  const readAll = r => new Promise(res => { const acc = []; const go = () => r.readEntries(es => { if(!es.length) return res(acc); acc.push(...es); go() }, () => res(acc)); go() });
+  const walk = async (en, dir) => {
+    if(en.isFile){ const f = await new Promise((res, rej) => en.file(res, rej)).catch(()=>null); if(f) out.push({file:f, path:dir+f.name}) }
+    else if(en.isDirectory){ for(const c of await readAll(en.createReader())) await walk(c, dir+en.name+'/') }
+  };
+  for(const en of items) await walk(en, '');
+  return out;
+}
+// EIS 파일만, 같은 측정의 .mpt/.mpr 는 하나만(.mpt 우선), 이미 넣은 파일은 건너뜀
+function pickEIS(entries){
+  const skipped = {}, keep = new Map(); let dup = 0, again = 0;
+  const keyOf = pth => pth.slice(0, pth.length - extOf(pth).length).toLowerCase();      // 같은 측정 = 확장자만 다름
+  const have = new Set(state.files.filter(f=>f.ok).map(f => keyOf(f.path||f.file||f.name)));
+  for(const e of entries){
+    const ext = extOf(e.file.name);
+    if(!EIS_EXT.includes(ext) || e.file.name.startsWith('~$')){ skipped[ext||'(확장자 없음)'] = (skipped[ext||'(확장자 없음)']||0) + 1; continue }
+    const key = keyOf(e.path);
+    if(have.has(key)){ again++; continue }
+    const prev = keep.get(key);
+    if(prev){ dup++; if(extOf(prev.file.name)==='.mpt') continue }
+    keep.set(key, e);
+  }
+  return {files:[...keep.values()], skipped, dup, again};
+}
+async function uploadEntries(entries){
+  if(!entries.length) return;
+  const {files, skipped, dup, again} = pickEIS(entries);
+  const notes = [];
+  if(dup) notes.push(`같은 측정의 .mpt/.mpr ${dup}개는 하나만 사용`);
+  const sk = Object.entries(skipped).sort((a,b)=>b[1]-a[1]);
+  if(sk.length) notes.push(`EIS 가 아닌 파일 ${sk.reduce((a,[,n])=>a+n,0)}개 건너뜀 (${sk.slice(0,5).map(([e,n])=>`${e} ${n}`).join(', ')}${sk.length>5?' …':''})`);
+  if(again) notes.push(`이미 넣은 파일 ${again}개 건너뜀`);
+  if(!files.length){ state.loadNote = notes.join(' · ') || 'EIS 파일이 없습니다'; renderFiles(); return }
+  const B = 12, t0 = Date.now(), added = []; let done = 0, nOk = 0, nBad = 0;
+  try{
+    for(let i=0; i<files.length; i+=B){
+      busy(`파일 읽는 중 ${done} / ${files.length}`);
+      const fd = new FormData();
+      files.slice(i, i+B).forEach(e => { fd.append('files', e.file, e.file.name); fd.append('paths', e.path) });
+      const r = await fetch('/api/upload', {method:'POST', body:fd});
+      if(!r.ok) throw new Error(await r.text());
+      const got = await r.json();
+      const sz = Object.fromEntries(files.slice(i, i+B).map(e => [e.path, e.file.size]));
+      got.forEach(g => { g.size = sz[g.path]; g.ok ? nOk++ : nBad++ });
+      addFiles(got); added.push(...got); done = Math.min(files.length, i+B);
+    }
+  }catch(e){ alert('파일 읽기 실패: ' + e.message) } finally{ busy() }
+  const nWarn = added.filter(f=>f.warn).length;
+  state.loadNote = [`측정 ${nOk}개 추가${nBad?` · 읽지 못한 파일 ${nBad}개 (아래)`:''} (${((Date.now()-t0)/1000).toFixed(1)}초)`,
+    ...(nWarn?[`⚠ 폴더와 파일명의 온도가 다른 측정 ${nWarn}개 — 표에서 ⚠ 표시 확인`]:[]), ...notes].join(' · ');
+  renderFiles();
 }
 const drop = $('#drop');
-drop.onclick = () => $('#fileInput').click();
-$('#fileInput').onchange = e => { uploadFiles(e.target.files); e.target.value='' };
+drop.onclick = e => { if(e.target.tagName!=='BUTTON') $('#fileInput').click() };
+$('#btnPickFiles').onclick = () => $('#fileInput').click();
+$('#btnPickDir').onclick = () => $('#dirInput').click();
+$('#fileInput').onchange = e => { uploadEntries([...e.target.files].map(f=>({file:f, path:f.name}))); e.target.value='' };
+$('#dirInput').onchange = e => { uploadEntries([...e.target.files].map(f=>({file:f, path:f.webkitRelativePath||f.name}))); e.target.value='' };
 ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('over') }));
 ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('over') }));
-drop.addEventListener('drop', e=>uploadFiles(e.dataTransfer.files));
 document.body.addEventListener('dragover', e=>e.preventDefault());
-document.body.addEventListener('drop', e=>{ e.preventDefault(); if(!drop.contains(e.target)) uploadFiles(e.dataTransfer.files) });
-$('#btnFolder').onclick = async () => { const p=$('#folderPath').value.trim(); if(!p) return; busy('폴더 읽는 중…');
-  try{ addFiles(await api('/api/load_folder',{path:p})) } catch(e){ alert(e.message) } finally{ busy() } };
+document.body.addEventListener('drop', async e=>{ e.preventDefault(); drop.classList.remove('over'); uploadEntries(await collectDrop(e.dataTransfer)) });
 
 /* ================= ② 셀 정보 ================= */
 const META_MAIN = [['cell','셀 구성'],['electrolyte','전해질']], META_MORE = [['electrode','작동 전극'],['state','셀 상태']];
@@ -253,15 +409,17 @@ function saveMeta(){ try{ localStorage.setItem('beaf.meta', JSON.stringify({...g
 function getMeta(){ const m={}; document.querySelectorAll('.meta select').forEach(s=>m[s.dataset.k]=s.value); return m }
 function getSettings(){
   const num = id => { const v=$(id).value; return v===''?null:+v };
-  return { mode:$('#sMode').value, fmax:num('#sFmax'), fmin:num('#sFmin'), with_L:$('#sL').checked, auto_L:$('#sAutoL').checked,
-    nested:$('#sNested').checked, n_starts:num('#sStarts')||8, target_rms_pct:num('#sTarget')||2,
-    custom: $('#sUC').checked ? state.uc.map(x=>x.circuit) : [] };
+  return { mode: state.tail ? 'full' : 'arcs', fmax:null, fmin:null,
+    nested:false, n_starts:8, target_rms_pct:2, custom: [],
+    only: state.circ.mode==='manual' && state.circ.sel ? state.circ.sel : null };
 }
 
 /* ================= 분석 ================= */
 async function analyzeOne(f, extraCustom){
-  f.running = true;
+  f.running = true; delete state.hist[f.id]; delete state.histMsg[f.id];
   const st = getSettings(); if(extraCustom) st.custom = [...new Set([...st.custom, extraCustom])];
+  const rg = state.rmode==='manual' ? state.ranges[f.id] : null;
+  st.range_mode = rg ? 'manual' : 'lab'; if(rg) st.manual = {start:rg.start, end:rg.end, exclude:rg.exclude, fix_R0:rg.fix_R0};
   try{
     const r = await api('/api/analyze', {id:f.id, meta:getMeta(), settings:st, cycle:f.cycle});
     state.results[f.id] = r;
@@ -270,8 +428,9 @@ async function analyzeOne(f, extraCustom){
   }catch(e){ state.results[f.id] = {status:'실패', reasons:[e.message], candidates:[], name:f.name} }
   f.running = false;
 }
-$('#btnRun').onclick = async () => {
-  const list = onFiles(); if(!list.length) return;
+$('#btnRun').onclick = () => openModal(onFiles());
+async function runAnalysis(list){
+  if(!list.length) return;
   const bar = $('#prog'), txt = $('#progTxt'); bar.style.display='block'; bar.firstElementChild.style.width='0';
   $('#btnRun').disabled = true; $('#spin').classList.add('on');
   let done = 0; const queue = [...list], t0 = Date.now(), now = new Set();
@@ -293,8 +452,8 @@ $('#btnRun').onclick = async () => {
   } finally { clearInterval(tick); busy(); $('#spin').classList.remove('on') }
   if(!state.sel || !state.results[state.sel]) state.sel = list[0].id;
   txt.textContent = `완료 — ${list.length}개, ${Math.round((Date.now()-t0)/1000)}초`; $('#btnRun').disabled = false; renderFiles(); renderResults();
-  $('#results').scrollIntoView({behavior:'smooth'});
-};
+  window.scrollTo({top:0, behavior:'smooth'});
+}
 
 /* 묶음: 추세 가로축 x, 묶는 기준 (자동 = x 외에 바뀌는 변수 중 묶음마다 x 값이 2개 이상 남는 것, 없으면 샘플별) */
 function trendSetup(){
@@ -319,10 +478,10 @@ function trendSetup(){
 }
 async function applyGroups(){
   const {groups} = trendSetup();
-  const req = $('#sGroup').checked ? Object.fromEntries(Object.entries(groups).map(([k,v])=>[k, v.map(f=>f.id)]))
+  const req = true ? Object.fromEntries(Object.entries(groups).map(([k,v])=>[k, v.map(f=>f.id)]))
     : Object.fromEntries(onFiles().filter(f=>state.results[f.id]).map(f=>[f.id,[f.id]]));
   try{
-    const out = await api('/api/group_prior', {groups:req, delta_bic:+$('#sDBIC').value||10});
+    const out = await api('/api/group_prior', {groups:req, delta_bic:10});
     for(const [id, upd] of Object.entries(out.results)){ Object.assign(state.results[id], upd); if(!state.manual[id]) state.adopt[id] = upd.recommended }
   }catch(e){ console.warn(e) }
 }
@@ -333,7 +492,8 @@ async function computeTrends(){
   try{
     state.trend.data = await api('/api/trends', {variable:x, groups: gl.map(([name, fs]) => ({name,
       items: fs.filter(f=>typeof f.meta[x]==='number').map(f=>({id:f.id, x:f.meta[x]})),
-      circuit: state.trend.circuit[name]||null, include: state.trend.include[name]||null}))});
+      circuit: state.trend.circuit[name]||null, include: state.trend.include[name]||null})),
+      unify: !!state.trend.unify, circuit: state.trend.unify ? (state.trend.ucirc||null) : null});
   }catch(e){ state.trend.data = null; console.warn(e) }
 }
 
@@ -342,7 +502,7 @@ function curCand(id){ id = id||state.sel; const r=state.results[id]; if(!r||!r.c
   return r.candidates.find(c=>c.ok && c.circuit===state.adopt[id]) || r.candidates.find(c=>c.ok) }
 function renderResults(){
   const list = onFiles().filter(f=>state.results[f.id]);
-  if(!list.length){ $('#results').innerHTML=''; renderAdv(); return }
+  if(!list.length){ $('#results').innerHTML='<div class="placeholder"><b>분석 결과가 여기에 나옵니다</b><br>왼쪽에 EIS 파일을 넣고 분석을 누르세요</div>'; return }
   const cnt = s => list.filter(f=>state.results[f.id].status===s).length;
   const Rcols = []; list.forEach(f=>{ const c=curCand(f.id); c && c.display_names.forEach((n,i)=>{ if(c.units[i]==='Ω' && !Rcols.includes(n)) Rcols.push(n) }) });
   const area = +($('#area')?.value||0);
@@ -366,26 +526,38 @@ function renderResults(){
   $('#results').querySelectorAll('tr[data-open]').forEach(tr => tr.onclick = () => { state.sel = tr.dataset.open; renderResults();
     $('#detail').scrollIntoView({behavior:'smooth', block:'start'}) });
   $('#btnExport').onclick = exportXlsx;
-  bindTrend(); renderDetail(); renderAdv();
+  bindTrend(); renderDetail();
 }
 
 /* ---------- 여러 측정 비교 (추세 · Arrhenius) ---------- */
-const GROUP_C = ['#2f5bd3','#d1453b','#1f8a8a','#8a4fc2','#c27a1f','#4f8a1f','#c2378a','#5b6474','#1f6fc2','#a35a00','#2a9d8f','#e76f51'];
+// 서로 잘 구별되는 색 (조성이 많아도 겹치지 않게)
+const GROUP_C = ['#1f77b4','#d62728','#2ca02c','#9467bd','#ff7f0e','#17becf','#e377c2','#8c564b','#7f7f7f','#bcbd22','#393b79','#ad494a'];
+const OWN_P = ['R_total','R_p (분극 합)','R_s (직렬)'];
 function trendHTML(){
   const {x, by, vary} = trendSetup(); if(!vary.length) return '';
   const G = (state.trend.data||[]).filter(g=>g.ok);
   const params = [...new Set(G.flatMap(g=>g.trends.map(t=>t.param)))];
-  if(!params.includes(state.trend.param)) state.trend.param = params[0];
-  const isT = x==='T_C'; if(!isT && state.trend.tab==='arr') state.trend.tab='trend';
-  let h = `<section class="card"><h3>여러 측정 비교 <span class="hint" style="font-weight:400">— 측정마다 따로 피팅한 결과를 묶음의 공통 회로 기준으로 모아 봅니다</span></h3>
+  if(!params.includes(state.trend.param)) state.trend.param = params.includes('R_total') ? 'R_total' : params[0];
+  const isT = x==='T_C', multi = G.length >= 2;
+  if(!isT && ['arr','ea'].includes(state.trend.tab)) state.trend.tab='trend';
+  if(!multi && ['ea','comp'].includes(state.trend.tab)) state.trend.tab='trend';
+  const own = params.filter(p=>OWN_P.includes(p)), circ = params.filter(p=>!OWN_P.includes(p));
+  // 각 성분이 몇 개 묶음에 있는지 (공통 회로가 묶음마다 다르면 일부 조성에만 있음)
+  const nHas = p => G.filter(g=>g.trends.some(t=>t.param===p && t.y.some(v=>v!=null))).length;
+  const gr = G[0]?.global_ranking || [];
+  let h = `<section class="card"><h3>여러 측정 비교 <span class="hint" style="font-weight:400">— 조성(샘플)마다 한 선으로 겹쳐 봅니다</span></h3>
+    <div class="opts">회로 <select id="tU"><option value="0" ${!state.trend.unify?'selected':''}>조성마다 공통 회로</option><option value="1" ${state.trend.unify?'selected':''}>전체를 한 회로로 통일 (다시 피팅)</option></select>
+      ${state.trend.unify && gr.length?`<select id="tUC" class="circ">${gr.map(r=>`<option value="${esc(r.circuit)}" ${r.circuit===G[0].circuit?'selected':''}>${esc(ecLab(r.circuit))} — 유효 ${r.n_valid}/${r.n} · DRT 일치 ${r.n_supported}</option>`).join('')}</select>`:''}
+      <span class="hint">${state.trend.unify?'모든 측정을 같은 회로로 피팅해 R_SEI · R_ct 같은 성분도 조성끼리 비교':'R_total · R_p · R_s 는 회로와 무관하게 조성끼리 비교 가능. 반원별 성분까지 비교하려면 \'한 회로로 통일\''}</span></div>
     <div class="opts">가로축 <select id="tX">${vary.map(k=>`<option value="${k}" ${k===x?'selected':''}>${esc(varLabel(k))}</option>`).join('')}</select>
       묶음 <select id="tBy"><option value="auto" ${state.trend.by==='auto'?'selected':''}>자동 (${by==='sample'?'샘플/파일별':esc(varLabel(by))+' 값별'})</option>
         <option value="sample" ${state.trend.by==='sample'?'selected':''}>샘플/파일별</option><option value="one" ${state.trend.by==='one'?'selected':''}>전체 하나</option>
         ${vary.filter(k=>k!==x).map(k=>`<option value="${k}" ${state.trend.by===k?'selected':''}>${esc(varLabel(k))} 값별</option>`).join('')}</select>
-      ${params.length?`성분 <select id="tP">${params.map(p=>`<option ${p===state.trend.param?'selected':''}>${esc(p)}</option>`).join('')}</select>`:''}
+      ${params.length?`성분 <select id="tP">${own.length?`<optgroup label="회로와 무관 (각 측정의 최적 회로)">${own.map(p=>`<option value="${esc(p)}" ${p===state.trend.param?'selected':''}>${esc(p)}</option>`).join('')}</optgroup>`:''}
+        <optgroup label="${state.trend.unify?'통일한 회로의 성분':'공통 회로의 성분 (조성마다 다를 수 있음)'}">${circ.map(p=>{ const n=nHas(p); return `<option value="${esc(p)}" ${p===state.trend.param?'selected':''}>${esc(p)}${n<G.length?` (${n}/${G.length} 조성)`:''}</option>` }).join('')}</optgroup></select>`:''}
       <label class="chk"><input type="checkbox" id="tLog" ${state.trend.log?'checked':''}> 로그 축</label></div>`;
   if(!G.length) return h + `<div class="empty">비교할 묶음이 없습니다 (묶음마다 값이 다른 측정이 2개 이상 필요). 가로축이나 묶음을 바꿔 보세요.</div></section>`;
-  h += `<div class="tabs" id="tTabs">${[['trend','추세'], ...(isT?[['arr','Arrhenius']]:[]), ['nyq','Nyquist 겹쳐 보기']].map(([k,t])=>`<button data-t="${k}" class="${state.trend.tab===k?'on':''}">${t}</button>`).join('')}</div>
+  h += `<div class="tabs" id="tTabs">${[['trend','추세'], ...(isT?[['arr','Arrhenius']]:[]), ...(isT&&multi?[['ea','Ea 비교']]:[]), ...(multi?[['comp','조성별']]:[]), ['nyq','Nyquist 겹쳐 보기']].map(([k,t])=>`<button data-t="${k}" class="${state.trend.tab===k?'on':''}">${t}</button>`).join('')}</div>
     <div id="tPlot" class="plot"></div><div class="opts">빈 원 = 그 측정에서 공통 회로가 탈락해 추세 계산에서 뺀 점 · 빨간 테두리 = 추세에서 크게 벗어난 점</div><div class="opts">${ZOOM_HINT}</div>`;
   if(isT){
     const ps = [...new Set(G.flatMap(g=>g.trends.filter(t=>t.arrhenius).map(t=>t.param)))];
@@ -396,7 +568,7 @@ function trendHTML(){
   h += `<details id="tPick" style="margin-top:10px" ${state.trend.pickOpen?'open':''}><summary>묶음별 공통 회로 · 추세에 넣을 측정 고르기</summary>
     <div class="hint" style="margin:6px 0">행 아무 곳이나 누르면 포함/제외가 바뀝니다. 바꾼 뒤 잠시 후 추세가 다시 계산됩니다.</div>${G.map((g,gi)=>`
     <div style="margin:10px 0"><b style="color:${GROUP_C[gi%GROUP_C.length]}">● ${esc(g.name)}</b> &nbsp;공통 회로
-      <select data-gc="${esc(g.name)}" class="circ">${g.ranking.map(r=>`<option value="${esc(r.circuit)}" ${r.circuit===g.circuit?'selected':''}>${esc(r.circuit)} — 유효·DRT 일치 ${r.n_supported}/${r.n}</option>`).join('')}</select>
+      ${state.trend.unify ? `<span class="circ">${esc(ecLab(g.circuit))}</span> <span class="hint">(전체 통일)</span>` : `<select data-gc="${esc(g.name)}" class="circ">${g.ranking.map(r=>`<option value="${esc(r.circuit)}" ${r.circuit===g.circuit?'selected':''}>${esc(ecLab(r.circuit))} — 유효·DRT 일치 ${r.n_supported}/${r.n}</option>`).join('')}</select>`}
       <div class="row" style="margin-top:6px;gap:6px"><span class="hint">포함:</span>
         <button data-pick="all" data-g="${esc(g.name)}">모두</button>
         <button data-pick="none" data-g="${esc(g.name)}">모두 빼기</button>
@@ -421,6 +593,10 @@ function bindTrend(){
   if($('#tX')) $('#tX').onchange = e => { state.trend.x = e.target.value; state.trend.circuit={}; state.trend.include={}; redo() };
   if($('#tBy')) $('#tBy').onchange = e => { state.trend.by = e.target.value; state.trend.circuit={}; state.trend.include={}; redo() };
   if($('#tP')) $('#tP').onchange = e => { state.trend.param = e.target.value; drawTrend() };
+  if($('#tU')) $('#tU').onchange = async e => { state.trend.unify = e.target.value==='1'; state.trend.include={};
+    busy(state.trend.unify ? '모든 측정을 한 회로로 다시 피팅하는 중… (측정 수에 따라 수십 초)' : '계산 중…'); await computeTrends(); busy(); renderKeep() };
+  if($('#tUC')) $('#tUC').onchange = async e => { state.trend.ucirc = e.target.value; state.trend.include={};
+    busy('모든 측정을 이 회로로 다시 피팅하는 중…'); await computeTrends(); busy(); renderKeep() };
   if($('#tLog')) $('#tLog').onchange = e => { state.trend.log = e.target.checked; drawTrend() };
   if($('#tTabs')) $('#tTabs').onclick = e => { const t=e.target.dataset.t; if(t){ state.trend.tab=t; renderKeep() } };
   document.querySelectorAll('select[data-gc]').forEach(s => s.onchange = async () => { state.trend.circuit[s.dataset.gc] = s.value; busy('계산 중…'); await computeTrends(); busy(); renderKeep() });
@@ -441,14 +617,35 @@ function bindTrend(){
     trendSoon() });
   drawTrend();
 }
-const baseLayout = () => ({margin:{l:64,r:24,t:12,b:50}, font:{family:css('--font'),size:12,color:css('--ink')}, paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'#fff',
+const baseLayout = () => ({dragmode:'pan', margin:{l:64,r:24,t:12,b:50}, font:{family:css('--font'),size:12,color:css('--ink')}, paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'#fff',
   legend:{orientation:'h',y:-0.2}, xaxis:{gridcolor:'#eef0f3',zeroline:false,linecolor:'#c9ced6'}, yaxis:{gridcolor:'#eef0f3',zeroline:false,linecolor:'#c9ced6'}});
-// 휠 = 확대/축소, 드래그 = 영역 확대, 더블클릭 = 원래대로 (그래프 밖에서 휠을 굴리면 페이지 이동)
+// 드래그 = 이동, 휠 = 확대/축소, 더블클릭 = 원래대로 (그래프 밖에서 휠을 굴리면 페이지 이동)
 const pOpts = {displaylogo:false, responsive:true, scrollZoom:true, toImageButtonOptions:{format:'png',scale:3}};
-const ZOOM_HINT = '휠 = 확대/축소 · 드래그 = 영역 확대 · 더블클릭 = 원래대로 · 그래프 밖에서 휠 = 페이지 이동';
+const ZOOM_HINT = '드래그 = 이동 · 휠 = 확대/축소 · 더블클릭 = 원래대로 · 영역 확대는 오른쪽 위 돋보기 버튼';
 function drawTrend(){
   const el = $('#tPlot'); if(!el || !state.trend.data) return;
   const G = state.trend.data.filter(g=>g.ok), L = baseLayout(), T = [], p = state.trend.param, arr = state.trend.tab==='arr';
+  if(state.trend.tab==='ea'){
+    // 조성별 활성화에너지 막대 (오차 막대 = 기울기 표준오차)
+    const rows = G.map((g,gi)=>({g, gi, a: g.trends.find(t=>t.param===p)?.arrhenius})).filter(r=>r.a);
+    T.push({type:'bar', x: rows.map(r=>r.g.name), y: rows.map(r=>r.a.Ea), marker:{color: rows.map(r=>GROUP_C[r.gi%GROUP_C.length])},
+      error_y:{type:'data', array: rows.map(r=>r.a.Ea_err??0), visible:true, color:css('--ink2')},
+      text: rows.map(r=>`${fmt(r.a.Ea,3)}`), textposition:'inside', insidetextanchor:'start', textfont:{color:'#fff'}, hovertext: rows.map(r=>`${r.g.name}<br>Ea = ${fmt(r.a.Ea,3)}${r.a.Ea_err!=null?' ± '+fmt(r.a.Ea_err,2):''} kJ/mol<br>R² = ${r.a.r2.toFixed(3)} · ${r.a.n}점`), hoverinfo:'text', showlegend:false});
+    L.xaxis.title={text:'조성 (샘플)'}; L.xaxis.type='category'; L.yaxis.title={text:`Ea of ${p} / kJ mol⁻¹`}; L.dragmode='pan';
+    Plotly.react(el, T, L, pOpts); return;
+  }
+  if(state.trend.tab==='comp'){
+    // 가로축 = 조성, 선 하나 = 같은 조건 (예: 같은 온도). 조건이 낮을수록 파랑 → 높을수록 빨강
+    const xs = [...new Set(G.flatMap(g=>g.rows.map(r=>r.x)))].sort((a,b)=>a-b);
+    xs.forEach((xv,k)=>{ const col = `hsl(${Math.round(220 - 220*k/Math.max(1,xs.length-1))},70%,45%)`;
+      const pts = G.map(g=>{ const t = g.trends.find(t=>t.param===p); if(!t) return null;
+        const ks = g.rows.map((r,i)=>i).filter(i=>g.rows[i].x===xv && t.used[i] && t.y[i]!=null);
+        if(!ks.length) return null; const ys = ks.map(i=>t.y[i]); return {g:g.name, y: ys.reduce((a,b)=>a+b,0)/ys.length, n: ks.length} }).filter(Boolean);
+      T.push({x: pts.map(q=>q.g), y: pts.map(q=>q.y), mode:'lines+markers', name:`${fmt(xv)} ${state.opts.variables[state.trend.x]?.unit||''}`,
+        line:{color:col,width:1.5}, marker:{color:col,size:8}, text: pts.map(q=>q.n>1?`${q.n}개 평균`:''), hovertemplate:'%{x}<br>%{y:.4g} Ω %{text}<extra>%{fullData.name}</extra>'}) });
+    L.xaxis.title={text:'조성 (샘플)'}; L.xaxis.type='category'; L.yaxis.title={text:`${p} / Ω`}; L.yaxis.type = state.trend.log?'log':'linear';
+    Plotly.react(el, T, L, pOpts); return;
+  }
   if(state.trend.tab==='nyq'){
     G.forEach((g,gi)=>g.rows.forEach((r,k)=>{ const res=state.results[r.id]; if(!res||!res.mask) return; const c=GROUP_C[gi%GROUP_C.length], m=res.mask;
       T.push({x:res.Zre.filter((_,i)=>m[i]), y:res.Zim.filter((_,i)=>m[i]).map(v=>-v), mode:'markers', name:`${g.name} ${fmt(r.x)}`, legendgroup:r.id, marker:{color:c,size:5,opacity:.3+.7*k/Math.max(1,g.rows.length-1)}});
@@ -478,22 +675,68 @@ function renderDetail(){
   const id = state.sel, f = state.files.find(x=>x.id===id), r = state.results[id];
   if(!f || !r){ box.innerHTML = '<div class="empty">위 표에서 측정을 누르면 자세한 결과가 나옵니다.</div>'; return }
   const c = curCand(id), cls = ({'통과':'ok','검토':'warn'})[r.status]||'bad';
-  const tabs = [['nyq','Nyquist'],['bode','Bode'],['drt','DRT'],['raw','원자료'], ...($('#adv').open?[['kk','KK 잔차'],['res','피팅 잔차']]:[])];
+  const tabs = [['nyq','Nyquist'],['bode','Bode'],['drt','DRT'],['raw','원자료'], ['kk','KK 잔차'],['res','피팅 잔차']];
   if(!c) state.tab = 'raw'; else if(!tabs.some(t=>t[0]===state.tab)) state.tab='nyq';
   const okC = (r.candidates||[]).filter(x=>x.ok), fr = r.freq ? r.freq.filter((_,i)=>r.mask[i]) : [];
   box.innerHTML = `<h3>${esc(f.name)} <span class="chip ${cls}">${r.status}</span></h3>
     ${!c && r.reasons&&r.reasons.length?`<ul class="reasons">${r.reasons.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}
     ${c ? explainHTML(r, c) : ''}
-    ${c?`<div class="opts">등가회로 <b class="circ">${esc(c.circuit)}</b>${(c.source||'').includes('AutoEIS')?' <span class="chip ae">AutoEIS</span>':''}
-      · 잔차 ${fmt(c.rms_pct,3)}% (측정 노이즈 ${fmt(r.kk?.noise_pct,2)}%) · DRT 반원 ${r.n_drt}개 · 피팅 구간 ${fmt(Math.min(...fr),3)} ~ ${fmt(Math.max(...fr),3)} Hz</div>`:''}
+    ${c?`<div class="row" style="gap:16px;margin-top:6px"><div title="${esc(c.circuit)}">${circSVG(c.circuit, 520)}</div><span class="ec circ hint">${esc(ecLab(c.circuit))}</span></div>`:''}
+    ${c?`<div class="opts">등가회로 <b class="circ">${esc(c.circuit)}</b>
+      · 잔차 ${fmt(c.rms_pct,3)}% (측정 노이즈 ${fmt(r.kk?.noise_pct,2)}%) · DRT 반원 ${r.n_drt}개 · 피팅 구간 ${fmt(Math.min(...fr),3)} ~ ${fmt(Math.max(...fr),3)} Hz (${fr.length}점)</div>${policyHTML(r)}`:''}
     <div class="grid2" style="margin-top:8px">
       <div><div class="tabs" id="dTabs">${tabs.map(([k,t])=>`<button data-t="${k}" class="${state.tab===k?'on':''}">${t}</button>`).join('')}</div>
         <div id="dPlot" class="plot"></div><div class="opts" id="dOpts"></div><div class="opts">${ZOOM_HINT}</div></div>
       <div id="dParams"></div>
     </div>
+    ${c?'<div id="dHist" style="margin-top:14px"></div>':''}
     ${okC.length>1?`<details style="margin-top:10px"><summary>다른 후보 회로 ${okC.length-1}개 비교 · 바꾸기</summary><div class="scroll" style="max-height:380px;margin-top:6px"><table id="candT"></table></div></details>`:''}`;
   $('#dTabs').onclick = e => { const t=e.target.dataset.t; if(t){ state.tab=t; renderDetail() } };
-  drawDetail(); renderParams(); renderCands();
+  box.querySelectorAll('[data-repick]').forEach(b => b.onclick = () => { openModal([f]); setMode('manual') });
+  drawDetail(); renderParams(); renderCands(); renderHist();
+}
+/* ---------- 피팅 기록: 재분석(Minimize)을 눌러도 이전 결과가 남음 ---------- */
+function renderHist(){
+  const box = $('#dHist'); if(!box) return; const id = state.sel, c = curCand(); if(!c){ box.innerHTML=''; return }
+  const H = state.hist[id]?.[c.circuit], list = H?.list || [], using = H?.using ?? 0;
+  const rcols = c.display_names.map((n,i)=>[n,i]).filter(([,i])=>c.units[i]==='Ω' || c.kinds[i]==='alpha');
+  const row = (x,k) => { const prev = list[k-1];
+    const d = x.prev_chi2 ? (x.chi2 - x.prev_chi2)/x.prev_chi2*100 : null;
+    const dTxt = k===0 ? '<span class="hint">출발점</span>' : Math.abs(d) < 0.01 ? '<span class="hint">변화 없음</span>' : `<span style="color:${d<0?'var(--ok)':'var(--bad)'}">${d>0?'+':''}${fmt(d,2)}%</span>`;
+    return `<tr class="click ${k===using?'sel':''}" data-round="${k}"><td><input type="radio" name="hround" ${k===using?'checked':''}></td>
+      <td>${esc(x.label||'자동 분석')}${x.from_round!=null&&k>0&&x.from_round!==k-1?` <span class="hint">(${x.from_round===0?'자동 분석':'재분석 '+x.from_round}에서 출발)</span>`:''}</td>
+      <td class="num">${fmt(x.chi2,4)}</td><td class="num">${fmt(x.rms_pct,3)}</td><td class="num">${dTxt}</td>
+      ${rcols.map(([n,i])=>{ const v = x.values[i], pv = prev?.values[i], ch = pv!=null && Math.abs(v-pv) > 0.005*Math.abs(pv);
+        return `<td class="num" ${ch?'style="font-weight:700"':''}>${fmt(v)}${ch?`<span class="hint">${v>pv?'▲':'▼'}</span>`:''}</td>` }).join('')}
+      <td>${x.valid?'<span style="color:var(--ok)">유효</span>':'<span style="color:var(--bad)">탈락</span>'} <span class="hint">재현 ${x.reproduce?.[0]}/${x.reproduce?.[1]}</span></td></tr>` };
+  box.innerHTML = `<div class="row"><h3 style="margin:0">피팅 기록</h3>
+      <button id="btnRefine" class="primary">재분석 (Minimize)</button>
+      <span class="hint">지금 결과의 값에서 다시 출발해 최적화합니다 (시작점 8개). 이전 결과는 아래에 그대로 남고, 행을 누르면 그 결과로 되돌아갑니다</span></div>
+    ${state.histMsg[id]?`<div class="policy" style="margin-top:6px">${state.histMsg[id]}</div>`:''}
+    ${list.length ? `<div class="scroll" style="margin-top:8px;max-height:260px"><table><tr><th></th><th>기록</th><th class="num">χ²</th><th class="num">잔차 %</th><th class="num">Δχ²</th>
+      ${rcols.map(([n])=>`<th class="num">${esc(n)}</th>`).join('')}<th>판정</th></tr>${list.map(row).join('')}</table></div>
+      <div class="hint" style="margin-top:4px">굵은 값 = 바로 위 기록보다 0.5% 넘게 바뀐 값 · 고른 기록이 결과 표 · 추세 · 엑셀에 쓰입니다 · Nyquist 의 회색 점선 = 처음 자동 분석 결과</div>`
+      : '<div class="hint" style="margin-top:6px">아직 재분석하지 않았습니다.</div>'}`;
+  $('#btnRefine').onclick = async () => {
+    const b = $('#btnRefine'); b.disabled = true; b.textContent = '재분석 중…';
+    try{
+      const res = await api('/api/refine', {id, circuit:c.circuit, n_starts:8});
+      const last = res.list[res.list.length-1], d = (last.chi2 - last.prev_chi2)/last.prev_chi2*100;
+      state.histMsg[id] = Math.abs(d) < 0.01 ? '<b>더 이상 줄어들지 않습니다</b> — 이 회로 · 이 구간에서는 수렴했습니다. 더 좋아지려면 회로나 피팅 구간을 바꿔 보세요'
+        : `χ² ${d<0?'감소':'증가'} ${fmt(Math.abs(d),3)}% (${fmt(last.prev_chi2,4)} → ${fmt(last.chi2,4)})`;
+      setHist(id, c.circuit, res);
+    }catch(e){ state.histMsg[id] = `<span style="color:var(--bad)">${esc(e.message)}</span>` }
+    renderResults();
+  };
+  box.querySelectorAll('tr[data-round]').forEach(tr => tr.onclick = async () => {
+    const k = +tr.dataset.round; if(k===using) return;
+    try{ setHist(id, c.circuit, await api('/api/use_round', {id, circuit:c.circuit, round:k})); state.histMsg[id] = `${esc(list[k].label||'자동 분석')} 결과를 사용합니다` }catch(e){ alert(e.message) }
+    renderResults() });
+}
+function setHist(id, circuit, res){
+  (state.hist[id] ||= {})[circuit] = res;
+  const r = state.results[id], i = r.candidates.findIndex(x=>x.ok && x.circuit===circuit);
+  if(i>=0) r.candidates[i] = res.list[res.using];
 }
 /* ---------- 결과를 말로 풀어 쓰기 (수치 요약 + 물리 해석 힌트) ---------- */
 const fHz = f => f>=1e6 ? `${fmt(f/1e6,2)} MHz` : f>=1e3 ? `${fmt(f/1e3,2)} kHz` : f>=1 ? `${fmt(f,2)} Hz` : `${fmt(f*1e3,2)} mHz`;
@@ -602,10 +845,10 @@ function explainHTML(r, c){
 function renderParams(){
   const c = curCand(), box = $('#dParams'); if(!box) return; if(!c){ box.innerHTML=''; return }
   const area = +($('#area')?.value||0), sym = getMeta().cell==='sym';
-  const sumOnly = new Set(c.flags.filter(x=>x.sum_only).flatMap(x=>x.sum_only)), B = c.bayes && c.bayes.params;
+  const sumOnly = new Set(c.flags.filter(x=>x.sum_only).flatMap(x=>x.sum_only)), B = null;
   let h = `<table><tr><th>파라미터</th><th class="num">값</th><th class="num">± 오차</th>${B?'<th class="num">베이지안 [95%]</th>':''}<th>단위</th>${area?'<th class="num">Ω·cm²</th>':''}</tr>`;
   c.names.forEach((n,i)=>{ const v=c.values[i], e=c.stderr[i], rel=(e!=null&&v)?Math.abs(e/v*100):null, isR=c.units[i]==='Ω';
-    h += `<tr><td><b>${esc(c.display_names[i])}</b>${c.bound_hits[n]?` <span class="chip warn">${c.bound_hits[n]}</span>`:''}${sumOnly.has(n)?' <span class="chip warn">합만 신뢰</span>':''}</td>
+    h += `<tr><td><b>${esc(c.display_names[i])}</b>${c.bound_hits[n]?` <span class="chip warn">${c.bound_hits[n]}</span>`:''}${sumOnly.has(n)?' <span class="chip warn">합만 신뢰</span>':''}${(c.fixed||[]).includes(n)?' <span class="chip">x절편 고정</span>':''}</td>
       <td class="num">${fmt(v)}</td><td class="num" style="color:${rel>50?'var(--bad)':rel>20?'var(--warn)':'inherit'}">${fmt(e,2)}${rel!=null?` <span class="hint">(${rel.toFixed(0)}%)</span>`:''}</td>
       ${B?`<td class="num">${B[n]?`${fmt(B[n].median)} <span class="hint">[${fmt(B[n].lo95,3)}, ${fmt(B[n].hi95,3)}]</span>`:'–'}</td>`:''}
       <td class="hint">${esc(c.units[i])}</td>${area?`<td class="num">${isR?fmt(v*area):''}</td>`:''}</tr>` });
@@ -617,14 +860,13 @@ function renderParams(){
     if(pair){ const i=c.arcs.indexOf(pair); h += `<div class="hint" style="margin-top:8px">⚠ ${esc(c.arc_labels[i])}와 ${esc(c.arc_labels[i+1])}는 반원이 겹쳐 나눈 값이 불확실합니다. 둘의 합 <b>${fmt(pair.sum_with_next)} ± ${fmt(pair.sum_err,2)} Ω</b>은 정확합니다.</div>` }
     if(sym) h += `<div class="hint" style="margin-top:4px">대칭셀: 값은 전극 2개의 합 (전극 1개 = ½)</div>`;
   }
-  if(c.bayes && c.bayes.notes && c.bayes.notes.length) h += `<ul class="reasons">${c.bayes.notes.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`;
   box.innerHTML = h;
 }
 function renderCands(){
   const t = $('#candT'); if(!t) return; const r = state.results[state.sel], a = state.adopt[state.sel];
   t.innerHTML = `<tr><th>채택</th><th>회로</th><th class="num">잔차 %</th><th class="num">ΔBIC</th><th>판정</th></tr>` + r.candidates.filter(c=>c.ok).map(c=>`
     <tr class="${c.valid?'':'off'}"><td><input type="radio" name="adopt" data-c="${esc(c.circuit)}" ${c.circuit===a?'checked':''}></td>
-    <td><span class="circ">${esc(c.circuit)}</span>${c.circuit===r.recommended?' <span class="star">★ 추천</span>':''}${r.group&&c.circuit===r.group.consensus?' <span class="chip">묶음 공통</span>':''}${(c.source||'').includes('AutoEIS')?' <span class="chip ae">AutoEIS</span>':''}<div class="hint">${esc(c.desc||'')}</div></td>
+    <td><span class="circ">${esc(c.circuit)}</span>${c.circuit===r.recommended?' <span class="star">★ 추천</span>':''}${r.group&&c.circuit===r.group.consensus?' <span class="chip">묶음 공통</span>':''}<div class="hint">${esc(c.desc||'')}</div></td>
     <td class="num">${fmt(c.rms_pct,3)}</td><td class="num">${fmt(c.dBIC,3)}</td>
     <td>${c.valid?'<span style="color:var(--ok)">유효</span>':'<span style="color:var(--bad)">탈락</span>'}${c.drt_supported?' <span class="chip ok">DRT 일치</span>':''}${c.flags.map(x=>`<div class="flags ${x.severe?'sev':''}">${esc(x.msg)}</div>`).join('')}</td></tr>`).join('');
   t.onchange = e => { const v=e.target.dataset.c; if(!v) return; state.adopt[state.sel]=v; state.manual[state.sel]=true; renderResults() };
@@ -643,7 +885,10 @@ async function drawDetail(){
   } else if(state.tab==='nyq'){
     T.push({x:idx.filter(i=>!m[i]).map(i=>re[i]), y:idx.filter(i=>!m[i]).map(i=>-im[i]), text:idx.filter(i=>!m[i]).map(hov), mode:'markers', name:'피팅에서 뺀 점', marker:{color:css('--c-ex'),symbol:'circle-open',size:7}});
     T.push({x:idx.filter(i=>m[i]).map(i=>re[i]), y:idx.filter(i=>m[i]).map(i=>-im[i]), text:idx.filter(i=>m[i]).map(hov), mode:'markers', name:'측정', marker:{color:css('--c-data'),size:7}});
+    if(c.line_ext) T.push({x:c.line_ext.re, y:c.line_ext.im.map(v=>-v), mode:'lines', name:'피팅 연장 (구간 밖)', line:{color:css('--c-fit'),width:1.3,dash:'dot'}});
     T.push({x:c.line.re, y:c.line.im.map(v=>-v), mode:'lines', name:'피팅', line:{color:css('--c-fit'),width:2.2}});
+    const H = state.hist[state.sel]?.[c.circuit];
+    if(H && H.using>0 && H.list[0]?.line) T.push({x:H.list[0].line.re, y:H.list[0].line.im.map(v=>-v), mode:'lines', name:'처음 자동 분석', line:{color:css('--ink2'),width:1.4,dash:'dot'}});
     c.arc_curves.forEach((a,k)=>T.push({x:a.re, y:a.im.map(v=>-v), mode:'lines', name:c.arc_labels[k], visible:'legendonly', line:{color:css(ARC_C[k%4]),width:1.5,dash:'dash'}}));
     L.xaxis.title={text:"Z' / Ω"}; L.yaxis.title={text:"−Z'' / Ω"}; L.yaxis.scaleanchor='x';
     $('#dOpts').textContent = '범례에서 반원 이름을 누르면 성분별 반원이 따로 보입니다 · 점에 마우스를 올리면 주파수';
@@ -659,6 +904,7 @@ async function drawDetail(){
     const tf = t=>1/(2*Math.PI*t);
     T.push({x:d.tau.map(tf), y:d.gamma, mode:'lines', name:'DRT', line:{color:css('--c-data'),width:2.2}, fill:'tozeroy', fillcolor:'rgba(47,91,211,.08)'});
     T.push({x:d.peaks.map(p=>p.f), y:d.peaks.map(p=>p.gamma), mode:'markers+text', name:'확실한 피크', text:d.peaks.map(p=>`${fmt(p.f,3)} Hz`), textposition:'top center', marker:{color:css('--c-fit'),size:10}});
+    if(d.peaks_warburg?.length) T.push({x:d.peaks_warburg.map(p=>p.f), y:d.peaks_warburg.map(p=>p.gamma), mode:'markers+text', name:'Warburg 쪽 피크 (반원으로 안 셈)', text:d.peaks_warburg.map(()=>'W'), textposition:'top center', marker:{color:css('--c-ex'),size:9,symbol:'x'}});
     c.arcs.forEach((a,k)=>T.push({x:[a.f_peak,a.f_peak], y:[0,Math.max(...d.gamma)*1.05], mode:'lines', name:`피팅 ${c.arc_labels[k]}`, line:{color:css(ARC_C[k%4]),dash:'dot',width:1.5}}));
     L.xaxis.type='log'; L.xaxis.autorange='reversed'; L.xaxis.title={text:'주파수 / Hz (왼쪽 = 고주파)'}; L.yaxis.title={text:'γ / Ω'};
     $('#dOpts').textContent = '피크 하나 = 반원(과정) 하나. 점선 = 피팅된 반원 위치 — 피크와 맞아야 합니다';
@@ -675,52 +921,248 @@ async function drawDetail(){
   Plotly.react(el, T, L, pOpts);
 }
 
-/* ================= 고급 ================= */
-$('#adv').addEventListener('toggle', () => { renderDetail(); renderAdv() });
-function renderAdv(){
-  const box = $('#advSel'); const id = state.sel, r = state.results[id], f = state.files.find(x=>x.id===id);
-  if(!r || !r.candidates?.length){ box.innerHTML = '결과에서 측정을 하나 고르면 여기서 회로 직접 입력, AutoEIS 회로 탐색·베이지안 추론을 쓸 수 있습니다. 고급을 펼친 동안에는 상세 결과에 KK·피팅 잔차 탭이 추가됩니다.'; return }
-  const c = curCand(), running = state.ae[id];
-  box.innerHTML = `<div><b>${esc(f.name)}</b></div>
-    <div class="row" style="margin-top:8px"><input id="circIn" class="grow circ" value="${esc(c?c.circuit:'')}" spellcheck="false"><button id="btnFitC">이 회로로 피팅</button><button id="btnSaveC">저장</button></div>
-    <div class="hint" id="circMsg">impedance.py 표기: 직렬 -, 병렬 p(a,b), 소자 R C L CPE W Wo Ws La. 저장한 회로는 다음 분석부터 후보에 포함</div>
-    ${state.uc.length?`<div class="row" style="margin-top:4px">${state.uc.map(u=>`<span class="chip circ" data-uc="${esc(u.circuit)}" style="cursor:pointer">${esc(u.circuit)} <span data-rm="${esc(u.circuit)}">✕</span></span>`).join('')}</div>`:''}
-    <div style="margin-top:12px"><b style="color:#7a3fc2">AutoEIS</b> ${state.opts.autoeis?'':'<span class="chip bad">설치 안 됨</span>'}
-      <div class="row" style="margin-top:4px">반복 <input id="aeIters" type="number" value="${state.aeIters||24}" style="width:64px"><button id="btnAE" ${running||!state.opts.autoeis?'disabled':''}>회로 탐색</button>
-        <button id="btnBayes" ${running||!state.opts.autoeis||!c?'disabled':''}>베이지안 추론 (현재 회로)</button></div>
-      <div class="hint" id="aeMsg">${running?esc(running):r.autoeis?`지난 탐색: 회로 ${r.autoeis.circuits.length}개 추가 (${Math.round(r.autoeis.seconds)} s)`:'탐색: 진화 알고리즘(Julia)으로 회로를 찾아 후보에 추가합니다 (반복 1회 ≈ 5~12 s). BEAF 의 같은 기준으로 평가합니다.'}</div></div>`;
-  $('#btnFitC').onclick = async () => { const v=$('#circIn').value.trim(); const ck = await api('/api/check_circuit',{circuit:v});
-    if(!ck.ok){ $('#circMsg').innerHTML=`<span style="color:var(--bad)">${esc(ck.error)}</span>`; return }
-    busy('피팅 중…'); await analyzeOne(f, v); busy(); renderResults() };
-  $('#btnSaveC').onclick = async () => { try{ state.uc = await api('/api/user_circuits',{circuit:$('#circIn').value.trim(), note:''}); renderAdv() }catch(e){ alert(e.message) } };
-  box.querySelectorAll('[data-uc]').forEach(x=>x.onclick = async e => { if(e.target.dataset.rm){ state.uc = await api('/api/user_circuits?circuit='+encodeURIComponent(e.target.dataset.rm),undefined,'DELETE'); renderAdv(); return } $('#circIn').value = x.dataset.uc });
-  $('#btnAE').onclick = async () => { state.aeIters = +$('#aeIters').value||24;
-    try{ const {job} = await api('/api/autoeis',{id, iters:state.aeIters, meta:getMeta(), settings:getSettings(), cycle:f.cycle});
-      const j = await poll(job, id);
-      if(j.status==='done' && j.result){ state.results[id]=j.result; if(!state.manual[id]) state.adopt[id]=j.result.recommended; await applyGroups(); await computeTrends(); renderResults() }
-      else alert('AutoEIS: '+j.msg) }catch(e){ alert(e.message) } };
-  $('#btnBayes').onclick = async () => {
-    try{ const {job} = await api('/api/autoeis_bayes',{id, circuit:curCand().circuit, settings:getSettings(), cycle:f.cycle});
-      const j = await poll(job, id);
-      if(j.status==='done' && j.result){ state.results[id].candidates = j.result.candidates; renderResults() } else alert('베이지안: '+j.msg) }catch(e){ alert(e.message) } };
+/* ================= 자동 피팅 설정 창 (① 연구실 방식 / ② 직접 설정) ================= */
+const pk = { list: [], i: 0, pending: null };   // pending = 시작점만 찍고 끝점을 기다리는 index
+function rangeOf(fid){ return state.ranges[fid] }
+async function curCycle(fid){
+  const raw = await getRaw(fid), f = state.files.find(x=>x.id===fid), c = f?.cycle ?? raw.selected;
+  return raw.cycles.find(x=>x.cycle===c) || raw.cycles[0];
 }
-async function poll(job, id){
-  for(;;){ const j = await api('/api/job/'+job); state.ae[id] = `${j.msg} · ${Math.round(j.elapsed)} s`;
-    const m=$('#aeMsg'); if(m && state.sel===id) m.textContent = state.ae[id];
-    if(j.status!=='running'){ delete state.ae[id]; renderAdv(); return j } await new Promise(r=>setTimeout(r,2000)) }
+const labDefault = a => ({ start: a.first_inductive ?? a.start, end: a.arc_end, exclude: [], fix_R0: false });
+function openModal(list){
+  if(!list.length) return;
+  pk.list = list; pk.i = Math.max(0, list.findIndex(f=>f.id===state.sel)); pk.pending = null;
+  $('#mBg').classList.add('on'); $('#mTail').checked = state.tail; setMode(state.rmode); setCMode(state.circ.mode);
+  $('#mNote').textContent = `측정 ${list.length}개`;
+}
+function closeModal(){ $('#mBg').classList.remove('on') }
+function setMode(m){
+  state.rmode = m; try{ localStorage.setItem('beaf.rmode', m) }catch(e){}
+  document.querySelectorAll('#mChoice label').forEach(l => { const on = l.dataset.m===m; l.classList.toggle('on', on); l.querySelector('input[name=rmode]').checked = on });
+  $('#mPick').style.display = m==='manual' ? 'block' : 'none';
+  if(m==='manual') drawPick();
+}
+$('#mChoice').addEventListener('change', e => { if(e.target.id==='mTail'){ state.tail = e.target.checked; try{ localStorage.setItem('beaf.tail', state.tail?'1':'0') }catch(_){} return }
+  setMode(e.target.value) });
+$('#mCancel').onclick = closeModal;
+$('#mBg').addEventListener('click', e => { if(e.target.id==='mBg') closeModal() });
+document.addEventListener('keydown', e => { if(e.key==='Escape' && $('#mBg').classList.contains('on')) closeModal() });
+$('#mGo').onclick = () => {
+  if(state.circ.mode==='manual' && !state.circ.sel){ $('#mNote').innerHTML = '<span style="color:var(--bad)">등가회로를 하나 고르세요</span>'; $('#cPick').scrollIntoView({block:'nearest'}); return }
+  pk.pending = null; closeModal(); runAnalysis(pk.list) };
+$('#mFix').onchange = async e => { const fid = pk.list[pk.i].id, cy = await curCycle(fid);
+  const r = state.ranges[fid] ||= labDefault(cy.auto); r.fix_R0 = e.target.checked; drawPick() };
+$('#mAuto').onclick = () => { delete state.ranges[pk.list[pk.i].id]; pk.pending = null; drawPick() };
+$('#mAll').onclick = async () => {
+  const src = pk.list[pk.i], cy = await curCycle(src.id), r = state.ranges[src.id] || labDefault(cy.auto);
+  const near = (fr, x) => fr.reduce((b,v,i) => Math.abs(Math.log(v/x)) < Math.abs(Math.log(fr[b]/x)) ? i : b, 0);
+  busy('다른 측정에 적용 중…');
+  try{
+    for(const f of pk.list){ if(f.id===src.id) continue; const c2 = await curCycle(f.id);
+      state.ranges[f.id] = { start: near(c2.freq, cy.freq[r.start]), end: near(c2.freq, cy.freq[r.end]),
+        exclude: r.exclude.map(i=>near(c2.freq, cy.freq[i])), fix_R0: r.fix_R0 } }
+  } finally { busy() }
+  drawPick();
+};
+$('#mFiles').onclick = e => { const d = e.target.closest('[data-pi]'); if(d){ pk.i = +d.dataset.pi; pk.pending = null; drawPick() } };
+async function drawPick(){
+  const f = pk.list[pk.i]; if(!f) return;
+  $('#mFiles').innerHTML = pk.list.map((x,i)=>`<div data-pi="${i}" class="${i===pk.i?'on':''}"><span title="${esc(x.name)}">${esc(x.name)}</span>${state.ranges[x.id]?'<span class="chip run">직접</span>':'<span class="chip">자동</span>'}</div>`).join('');
+  const cy = await curCycle(f.id), a = cy.auto, set = state.ranges[f.id], r = set || labDefault(a);
+  const n = cy.freq.length, lo = Math.min(r.start, r.end), hi = Math.max(r.start, r.end), ex = new Set(r.exclude);
+  const pend = pk.pending, inR = i => pend==null && i>=lo && i<=hi && !ex.has(i), ind = i => cy.Zim[i] >= 0;    // −Z″ ≤ 0 = 인덕턴스 영역
+  $('#mNext').innerHTML = pend!=null ? `<b>끝점</b>을 누르세요 (시작 ${fHz(cy.freq[pend])})` : `다음 클릭 = <b>시작점</b>`;
+  $('#mFix').checked = !!r.fix_R0; $('#mFix').disabled = !a.has_inductive;
+  const idx = [...Array(n).keys()], col = css('--c-data'), gry = css('--c-ex'), bad = css('--bad');
+  const hov = i => `#${i} · ${fHz(cy.freq[i])}<br>Z' ${fmt(cy.Zre[i])} Ω, −Z″ ${fmt(-cy.Zim[i])} Ω${ind(i)?'<br>인덕턴스 영역':''}`;
+  const T = [
+    {x: idx.filter(inR).map(i=>cy.Zre[i]), y: idx.filter(inR).map(i=>-cy.Zim[i]), mode:'lines', line:{color:col,width:1}, hoverinfo:'skip', showlegend:false},
+    {x: cy.Zre, y: cy.Zim.map(v=>-v), customdata: idx, text: idx.map(hov), hoverinfo:'text', mode:'markers', name:'원자료 (진한 점 = 피팅에 사용)',
+      marker:{size: idx.map(i=>inR(i)?8:7), color: idx.map(i=>ex.has(i)?bad:inR(i)?col:gry),
+        symbol: idx.map(i=>ex.has(i)?'x':inR(i)?(ind(i)?'diamond':'circle'):'circle-open')}},
+    {x:[cy.Zre[pend ?? r.start]], y:[-cy.Zim[pend ?? r.start]], mode:'markers+text', text:['시작'], textposition:'top left', name:'시작점', hoverinfo:'skip',
+      marker:{size:18, color:'rgba(0,0,0,0)', line:{color:css('--ok'), width:3}}},
+    ...(pend!=null ? [] : [{x:[cy.Zre[r.end]], y:[-cy.Zim[r.end]], mode:'markers+text', text:['끝'], textposition:'top right', name:'끝점', hoverinfo:'skip',
+      marker:{size:18, color:'rgba(0,0,0,0)', line:{color:css('--c-arc3'), width:3}}}]),
+  ];
+  if(a.R_HF!=null) T.push({x:[a.R_HF], y:[0], mode:'markers', name:`x절편 ${fmt(a.R_HF)} Ω`, hoverinfo:'name', marker:{symbol:'line-ns-open', size:16, color:css('--ink2'), line:{width:2}}});
+  if(a.has_tail) T.push({x:[cy.Zre[a.valley]], y:[-cy.Zim[a.valley]], mode:'markers', name:'Warburg 시작 (최저점)', hoverinfo:'name', marker:{symbol:'triangle-up-open', size:14, color:css('--c-arc2'), line:{width:2}}});
+  const L = baseLayout(); L.xaxis.title={text:"Z' / Ω"}; L.yaxis.title={text:"−Z'' / Ω"}; L.yaxis.scaleanchor='x'; L.yaxis.zeroline=true; L.yaxis.zerolinecolor='#c9ced6';
+  L.legend={orientation:'h', y:-0.18}; L.hovermode='closest'; L.margin.b=70;
+  L.dragmode = 'pan'; L.uirevision = f.id + '|' + cy.cycle;      // 드래그 = 이동, 점을 눌러도 확대 상태 유지
+  const el = $('#mPlot'); await Plotly.react(el, T, L, {...pOpts, responsive:true, doubleClick:'reset'});
+  el.removeAllListeners && el.removeAllListeners('plotly_click');
+  el.on('plotly_click', d => { const p = d.points.find(p=>p.customdata!=null); if(!p) return; const i = +p.customdata;
+    const cur = () => state.ranges[f.id] ||= labDefault(a);
+    if(d.event && d.event.shiftKey && pk.pending==null){ const c = cur(); c.exclude = c.exclude.includes(i) ? c.exclude.filter(x=>x!==i) : [...c.exclude, i] }
+    else if(pk.pending==null){ pk.pending = i }                                   // 첫 번째 클릭 = 시작점
+    else { const c = cur(); c.start = pk.pending; c.end = i; c.exclude = []; pk.pending = null }   // 두 번째 = 끝점 (범위 밖은 자동 제외)
+    drawPick() });
+  const nUse = idx.filter(inR).length, nInd = idx.filter(i=>inR(i) && ind(i)).length;
+  $('#mInfo').innerHTML = `${set?'<b>직접 설정</b>':'<b>연구실 방식 자동값</b> (점 두 개를 누르면 직접 설정으로 바뀜)'} · 시작 ${fHz(cy.freq[lo])} (#${lo}) → 끝 ${fHz(cy.freq[hi])} (#${hi}) · ${nUse}점`
+    + (r.exclude.length?` · 뺀 점 ${r.exclude.length}개`:'')
+    + (nInd?` · 인덕턴스 점 ${nInd}개 포함 → 회로에 L 자동 추가`:'')
+    + (r.fix_R0 && a.R_HF!=null?` · R0 = ${fmt(a.R_HF)} Ω 고정`:'')
+    + (!set && a.has_inductive?'<br><span class="hint">자동(연구실 방식)으로 두면: 이 시작점(+L)과 x절편 고정 두 가지를 모두 피팅해 더 잘 맞는 쪽을 씁니다</span>':'');
+}
+function policyHTML(r){
+  const p = r.fit_policy; if(!p) return '';
+  if(p.mode==='lab' && p.variants.length>1){
+    return `<div class="policy">피팅 구간 · 연구실 방식: ${p.variants.map(v=>`${v.chosen?'<b>✔ ':''}${esc(v.label)}${v.circuit?` — 공통 구간 잔차 ${fmt(v.rms_pct_common,3)}%${v.valid?'':' (탈락)'}`:' — 피팅 실패'}${v.chosen?'</b>':''}`).join(' &nbsp;vs&nbsp; ')}
+      <button class="x" data-repick title="이 측정의 구간을 직접 고르기">✎ 직접 고르기</button></div>`;
+  }
+  return `<div class="policy">피팅 구간: <b>${esc(p.variants[0].label)}</b> <button class="x" data-repick title="이 측정의 구간을 직접 고르기">✎ 직접 고르기</button></div>`;
+}
+
+/* ================= 등가회로 그림 · EC-Lab 표기 ================= */
+function parseCirc(str){
+  const toks = String(str).replace(/\s/g,'').match(/p\(|\(|\)|,|-|[A-Za-z]+\d*_?\w*/g) || []; let i = 0;
+  const series = () => { const it = [item()]; while(toks[i]==='-'){ i++; it.push(item()) } return it.length>1 ? {t:'s', c:it} : it[0] };
+  const item = () => { const t = toks[i++];
+    if(t==='p('){ const b = [series()]; while(toks[i]===','){ i++; b.push(series()) } if(toks[i++]!==')') throw new Error('괄호'); return {t:'p', c:b} }
+    const m = (t||'').match(/^(TLMQ|TLMn|CPE|Wo|Ws|La|R|C|L|W|G)(\w*)$/); if(!m) throw new Error(`소자 '${t}'`);
+    return {t:'e', k:m[1], name:t} };
+  const r = series(); if(i!==toks.length) throw new Error('해석 실패'); return r;
+}
+const EL_W = 48, PAD = 10, VGAP = 8;
+const elLabel = n => n.k==='CPE' ? 'Q'+n.name.slice(3) : n.name;
+function elemSVG(n, x, y){
+  const L = (a,b,c,d) => `<line x1="${a}" y1="${b}" x2="${c}" y2="${d}"/>`, k = n.k;
+  let s = '';
+  if(k==='C' || k==='CPE'){
+    s += L(x, y, x+21, y) + L(x+27, y, x+EL_W, y);
+    s += k==='C' ? L(x+21, y-9, x+21, y+9) + L(x+27, y-9, x+27, y+9)
+                 : L(x+18, y-9, x+23, y+9) + L(x+24, y-9, x+29, y+9);
+  } else if(k==='L' || k==='La'){
+    s += L(x, y, x+12, y) + `<path d="M${x+12} ${y} a4 4 0 0 1 8 0 a4 4 0 0 1 8 0 a4 4 0 0 1 8 0"/>` + L(x+36, y, x+EL_W, y);
+  } else {
+    s += L(x, y, x+11, y) + `<rect x="${x+11}" y="${y-6}" width="26" height="12" rx="1.5"/>` + L(x+37, y, x+EL_W, y);
+    if(k!=='R') s += `<text x="${x+24}" y="${y+3}" text-anchor="middle" class="in">${({TLMn:'TLM',TLMQ:'TLMQ'})[k]||k}</text>`;
+  }
+  return s + `<text x="${x+24}" y="${y+21}" text-anchor="middle">${esc(elLabel(n))}</text>`;
+}
+function layCirc(n){
+  if(n.t==='e') return {w:EL_W, up:11, dn:25, draw:(x,y)=>elemSVG(n,x,y)};
+  const ch = n.c.map(layCirc);
+  if(n.t==='s') return {w:ch.reduce((a,c)=>a+c.w,0), up:Math.max(...ch.map(c=>c.up)), dn:Math.max(...ch.map(c=>c.dn)),
+    draw:(x,y)=>{ let s='', xx=x; ch.forEach(c=>{ s+=c.draw(xx,y); xx+=c.w }); return s }};
+  const inner = Math.max(...ch.map(c=>c.w)), w = inner + 2*PAD, off = [0];
+  for(let k=1;k<ch.length;k++) off.push(off[k-1] + ch[k-1].dn + VGAP + ch[k].up);
+  const span = off[off.length-1], mid = span/2;
+  return {w, up: mid + ch[0].up, dn: span - mid + ch[ch.length-1].dn, draw:(x,y)=>{
+    const y0 = y - mid, L = (a,b,c,d) => `<line x1="${a}" y1="${b}" x2="${c}" y2="${d}"/>`;
+    let s = L(x, y, x+PAD, y) + L(x+w-PAD, y, x+w, y) + L(x+PAD, y0, x+PAD, y0+span) + L(x+w-PAD, y0, x+w-PAD, y0+span);
+    ch.forEach((c,k)=>{ const by = y0+off[k], bx = x+PAD+(inner-c.w)/2;
+      s += c.draw(bx, by) + L(x+PAD, by, bx, by) + L(bx+c.w, by, x+w-PAD, by) });
+    return s }};
+}
+function circSVG(str, maxW){
+  let t; try{ t = parseCirc(str) }catch(e){ return `<span class="hint" style="color:var(--bad)">회로 해석 실패: ${esc(e.message)}</span>` }
+  const l = layCirc(t), W = l.w + 16, H = l.up + l.dn + 6;
+  return `<svg class="circsvg" viewBox="-8 ${-l.up-3} ${W} ${H}" width="${Math.min(W*1.15, maxW||9999)}" role="img" aria-label="${esc(str)}">
+    <circle cx="-4" cy="0" r="2.5"/><circle cx="${l.w+4}" cy="0" r="2.5"/><line x1="-1.5" y1="0" x2="0" y2="0"/><line x1="${l.w}" y1="0" x2="${l.w+1.5}" y2="0"/>${l.draw(0,0)}</svg>`;
+}
+// EC-Lab ZFit 표기:  R1+Q2/R2+Q3/R3  ('+' 직렬, '/' 병렬, 병렬 짝은 같은 번호)
+const EC_K = {R:'R', C:'C', L:'L', CPE:'Q', W:'W', Wo:'M', Ws:'Wd', La:'La', G:'G', TLMn:'TLM', TLMQ:'TLMQ'};
+function ecLab(str){
+  let t; try{ t = parseCirc(str) }catch(e){ return str }
+  let cnt = 0;
+  const cap = n => n.t==='e' && ['CPE','C'].includes(n.k) ? 1 : 0;
+  const ec = (n, k, top) => {
+    if(n.t==='e') return EC_K[n.k] + (k ?? ++cnt);
+    if(n.t==='s'){ const x = n.c.map(c => c.t==='p' ? ec(c, ++cnt) : ec(c, top ? undefined : k)).join('+'); return top ? x : `(${x})` }
+    return [...n.c].sort((a,b)=>cap(b)-cap(a)).map(c=>ec(c, k, false)).join('/');
+  };
+  return t.t==='s' ? ec(t, null, true) : t.t==='p' ? ec(t, ++cnt) : ec(t);
+}
+// ZFit 처럼 고르는 회로 목록 (L 은 피팅 구간 방식에 따라 자동으로 붙이거나 뗌)
+const CIRC_LIB = [
+  ['R0-p(R1,CPE1)', '반원 1개'],
+  ['R0-p(R1,CPE1)-p(R2,CPE2)', '반원 2개 (예: SEI + 전하전달)'],
+  ['R0-p(R1,CPE1)-p(R2,CPE2)-p(R3,CPE3)', '반원 3개'],
+  ['R0-p(R1,CPE1)-p(R2,CPE2)-p(R3,CPE3)-p(R4,CPE4)', '반원 4개'],
+  ['R0-p(R1,C1)-p(R2,C2)', '반원 2개, 이상적 축전기 (α = 1)'],
+  ['R0-p(R1-p(R2,CPE2),CPE1)', '중첩형: SEI 통과 후 전하전달'],
+  ['R0-p(R1-W1,CPE1)', 'Randles: 전하전달 + 반무한 확산'],
+  ['R0-p(R1,CPE1)-p(R2-W2,CPE2)', '반원 + Randles'],
+  ['R0-p(R1,CPE1)-CPE9', '반원 1개 + 저주파 Q 꼬리'],
+  ['R0-p(R1,CPE1)-W9', '반원 1개 + Warburg'],
+  ['R0-p(R1,CPE1)-Wo9', '반원 1개 + 유한 확산 (반사형, M)'],
+  ['R0-p(R1,CPE1)-Ws9', '반원 1개 + 유한 확산 (투과형, Wd)'],
+  ['R0-p(R1,CPE1)-p(R2,CPE2)-CPE9', '반원 2개 + 저주파 Q 꼬리'],
+  ['R0-p(R1,CPE1)-p(R2,CPE2)-W9', '반원 2개 + Warburg'],
+  ['R0-p(R1,CPE1)-p(R2,CPE2)-Wo9', '반원 2개 + 유한 확산 (반사형, M)'],
+  ['R0-p(R1,CPE1)-p(R2,CPE2)-Ws9', '반원 2개 + 유한 확산 (투과형, Wd)'],
+  ['R0-p(R1,CPE1)-p(R2,CPE2)-p(R3,CPE3)-CPE9', '반원 3개 + 저주파 Q 꼬리'],
+  ['R0-p(R1,CPE1)-p(R2,CPE2)-p(R3,CPE3)-W9', '반원 3개 + Warburg'],
+  ['R0-G9', 'Gerischer'],
+  ['R0-p(R1,CPE1)-G9', '반원 + Gerischer'],
+  ['R0-TLMn9', '다공성 전극 TLM (전하전달 있음)'],
+  ['R0-p(R1,CPE1)-TLMn9', '반원 + 다공성 전극 TLM'],
+  ['R0-TLMQ9', '블로킹 다공성 전극 TLM'],
+];
+
+/* ---------- 설정 창: 등가회로 고르기 ---------- */
+function setCMode(m){
+  state.circ.mode = m;
+  document.querySelectorAll('#cChoice label').forEach(l => { const on = l.dataset.c===m; l.classList.toggle('on', on); l.querySelector('input').checked = on });
+  $('#cPick').style.display = m==='manual' ? 'block' : 'none';
+  $('#mNote').textContent = `측정 ${pk.list.length}개`;
+  if(m==='manual'){ renderCPick(); loadSuggest() }
+}
+$('#cChoice').addEventListener('change', e => setCMode(e.target.value));
+async function loadSuggest(){
+  const ids = pk.list.map(f=>f.id), key = JSON.stringify([ids, getMeta(), pk.list.map(f=>f.cycle)]);
+  if(state.circ.sugKey===key && state.circ.sug) return;
+  state.circ.sugKey = key; state.circ.sug = 'loading'; renderCPick();
+  try{
+    const r = await api('/api/suggest', {ids, meta:getMeta(), cycles:Object.fromEntries(pk.list.map(f=>[f.id, f.cycle]))});
+    if(state.circ.sugKey===key){ state.circ.sug = r; if(!state.circ.sel && r.candidates[0]) state.circ.sel = r.candidates[0].circuit }
+  }catch(e){ state.circ.sug = {error:e.message} }
+  renderCPick();
+}
+function renderCPick(){
+  const box = $('#cPick'); if(box.style.display==='none') return;
+  const C = state.circ, sg = C.sug, sel = C.sel;
+  let h = '';
+  if(sg==='loading') h += `<div class="row" style="margin:10px 0"><span class="spin on"></span><span class="hint">DRT 로 반원 수를 세는 중… (측정당 1~3초)</span></div>`;
+  else if(sg?.error) h += `<div class="hint" style="color:var(--bad);margin:10px 0">추천 실패: ${esc(sg.error)} — 아래 목록에서 고르세요</div>`;
+  else if(sg){
+    const dist = Object.entries(sg.counts).sort((a,b)=>b[1]-a[1]).map(([n,c])=>`${n}개 ${c}측정`).join(', ');
+    h += `<div class="policy" style="margin:10px 0 8px">DRT 반원 수: <b>${sg.n_drt}개</b> (${dist}${sg.n_total>sg.n_used?` · 앞의 ${sg.n_used}개 측정 기준`:''})${sg.n_expected?` · 셀 정보로 예상: ${sg.n_expected}개`:''}</div>
+      <div class="msec-h" style="margin:0 0 6px">추천 회로</div>
+      <div class="cgrid">${sg.candidates.slice(0,6).map((c,i)=>`<div class="ccard ${c.circuit===sel?'on':''}" data-pc="${esc(c.circuit)}">
+        <div class="row" style="justify-content:space-between"><span class="ec">${esc(ecLab(c.circuit))}</span>${i===0?'<span class="chip ok">추천</span>':''}</div>
+        <div class="svgbox">${circSVG(c.circuit, 260)}</div>
+        <div class="hint">${esc(c.why)}${c.support!=null&&sg.files.length>1?` · ${c.support}/${sg.files.length} 측정`:''}</div></div>`).join('')}</div>`;
+  }
+  h += `<details style="margin-top:12px" ${C.libOpen?'open':''} id="cLibD"><summary>추천에 없으면: 목록에서 고르기 (EC-Lab ZFit 표기) · 직접 입력</summary>
+    <div class="clib" style="margin-top:6px">${CIRC_LIB.map(([c,d])=>`<div data-pc="${esc(c)}" class="${c===sel?'on':''}"><span class="ec">${esc(ecLab(c))}</span><span class="hint">${esc(d)}</span></div>`).join('')}</div>
+    <div class="row" style="margin-top:8px"><input id="cIn" class="grow circ" placeholder="impedance.py 표기, 예: R0-p(R1,CPE1)-p(R2-W2,CPE2)" value="${esc(C.custom)}" spellcheck="false"><button id="cInGo">이 회로 사용</button></div>
+    <div class="hint" id="cInMsg">직렬 -, 병렬 p(a,b), 소자 R C L CPE W Wo Ws La G TLMn TLMQ</div></details>`;
+  h += sel ? `<div class="csel"><b>선택</b><div>${circSVG(sel, 560)}</div><div><div class="ec circ">${esc(ecLab(sel))}</div><div class="hint circ">${esc(sel)}</div></div>
+      <div class="hint" style="flex-basis:100%">L 은 피팅 구간 방식에 따라 자동으로 붙거나 빠집니다 (연구실 방식: 인덕티브 점 포함 쪽은 L 추가, x절편 고정 쪽은 L 없음)</div></div>`
+    : `<div class="csel hint">아직 고른 회로가 없습니다</div>`;
+  box.innerHTML = h;
+  box.querySelectorAll('[data-pc]').forEach(el => el.onclick = () => { C.sel = el.dataset.pc; renderCPick() });
+  $('#cLibD').ontoggle = e => { C.libOpen = e.target.open };
+  $('#cInGo').onclick = async () => { const v = $('#cIn').value.trim(); C.custom = v; if(!v) return;
+    const ck = await api('/api/check_circuit', {circuit:v, note:''});
+    if(!ck.ok){ $('#cInMsg').innerHTML = `<span style="color:var(--bad)">${esc(ck.error)}</span>`; return }
+    C.sel = v; C.libOpen = true; renderCPick() };
 }
 
 /* ================= 내보내기 ================= */
 async function exportXlsx(){
   const items = onFiles().filter(f=>state.results[f.id]?.candidates?.length).map(f=>({id:f.id, circuit:state.adopt[f.id], meta_edit:{...f.meta}}));
   busy('엑셀 만드는 중…');
-  try{ const r = await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items})});
+  try{ const r = await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items, area: +($('#area')?.value||0) || null})});
     if(!r.ok) throw new Error(await r.text()); const b = await r.blob(), a = document.createElement('a');
     a.href = URL.createObjectURL(b); a.download = 'BEAF_results.xlsx'; a.click(); URL.revokeObjectURL(a.href) }
   catch(e){ alert(e.message) } finally{ busy() }
 }
 
-(async () => { state.opts = await api('/api/options'); initMeta(); state.uc = await api('/api/user_circuits'); renderFiles(); renderAdv() })();
+(async () => { state.opts = await api('/api/options'); initMeta(); renderFiles(); renderResults() })();
 </script>
 </body>
 </html>

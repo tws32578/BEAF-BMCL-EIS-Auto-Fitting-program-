@@ -156,6 +156,37 @@ def arrhenius(T_C, R, R_err=None):
             "r2": float(r2), "n": int(ok.sum()), "slope": float(a), "intercept": float(b)}
 
 
+# ---------------------------------------------------------------- 회로와 무관한 값 (측정마다 자기 최적 회로)
+OWN_PARAMS = ("R_total", "R_p (분극 합)", "R_s (직렬)")
+
+
+def own_params(items):
+    """
+    조성·회로가 달라도 비교할 수 있는 값: 각 측정의 추천(최적) 회로에서
+      R_s = 직렬 저항(R0), R_p = 반원 R 합 + Gerischer · TLM 직류 저항, R_total = R_s + R_p
+    공통 회로가 어떤 측정에서 안 맞아도 빈칸이 생기지 않음
+    """
+    vals = {k: [] for k in OWN_PARAMS}
+    ok = []
+    for it in items:
+        r = it["result"]
+        c = next((c for c in r.get("candidates", []) if c.get("ok") and c["circuit"] == r.get("recommended")),
+                 next((c for c in r.get("candidates", []) if c.get("ok")), None))
+        if c is None:
+            for k in OWN_PARAMS:
+                vals[k].append(np.nan)
+            ok.append(False)
+            continue
+        v = dict(zip(c["names"], c["values"]))
+        Rs = v.get("R0", 0.0)
+        Rp = sum(a["R"] for a in c["arcs"]) + sum(x["R"] for x in (c.get("specials") or []))
+        vals["R_total"].append(Rs + Rp)
+        vals["R_p (분극 합)"].append(Rp if Rp > 0 else np.nan)
+        vals["R_s (직렬)"].append(Rs if Rs > 0 else np.nan)
+        ok.append(bool(c.get("valid")) and r.get("status") != "데이터 이상")
+    return [{"param": k, "y": vals[k], "err": [np.nan] * len(items), "own": True, "use": ok} for k in OWN_PARAMS]
+
+
 # ---------------------------------------------------------------- 전체
 def analyze_group(name, items, var, meta, circuit=None, n_starts=8):
     """
@@ -217,8 +248,9 @@ def analyze_group(name, items, var, meta, circuit=None, n_starts=8):
         r["excluded"] = why                               # 툴이 제안하는 제외 사유
         r["include"] = why is None                        # 사용자가 바꿀 수 있음
     g = {"name": name, "ok": True, "variable": var, "circuit": chosen, "ranking": ranking[:8],
-         "start_index": start, "param_names": names, "rows": rows,
-         "series_params": [{"param": p, "y": ys, "err": es} for p, ys, es in params]}
+         "start_index": start, "param_names": names, "rows": rows, "refit": True,
+         "series_params": own_params(items) + [{"param": p, "y": ys, "err": es} for p, ys, es in params
+                                               if p not in ("R_Σ",)]}
     compute_trends(g)
     return g
 
@@ -233,13 +265,16 @@ def compute_trends(g, include=None):
         for r in rows:
             if r["id"] in include:
                 r["include"] = bool(include[r["id"]]) and r["ok"]
-    use = [r["include"] for r in rows]
+    use0 = [r["include"] for r in rows]
+    off = {rid for rid, v in (include or {}).items() if not v}       # 사용자가 직접 뺀 측정
     xs = [r["x"] for r in rows]
     trends = []
     for sp in g["series_params"]:
         ys, es = sp["y"], sp["err"]
+        # 회로와 무관한 값은 각 측정의 최적 회로 기준으로 포함 여부를 정함 (공통 회로 탈락과 무관)
+        use = [u and r["id"] not in off for u, r in zip(sp["use"], rows)] if sp.get("own") else use0
         fl, dev = trend_outliers(var, xs, ys, use)
-        t = {"param": sp["param"], "y": ys, "err": es, "outlier": fl, "dev": dev, "used": use}
+        t = {"param": sp["param"], "y": ys, "err": es, "outlier": fl, "dev": dev, "used": use, "own": bool(sp.get("own"))}
         if var == "T_C":
             sel = [u and not o for u, o in zip(use, fl)]
             t["arrhenius"] = arrhenius([x for x, k in zip(xs, sel) if k], [y for y, k in zip(ys, sel) if k])
@@ -314,5 +349,6 @@ def trends_from_fits(name, items, var, circuit=None, include=None):
             params.append((label, ys, [np.nan] * len(rows)))
     g = {"name": name, "ok": True, "variable": var, "circuit": chosen, "ranking": ranking[:8],
          "param_names": names, "rows": rows,
-         "series_params": [{"param": p, "y": ys, "err": es} for p, ys, es in params]}
+         "series_params": own_params(items) + [{"param": p, "y": ys, "err": es} for p, ys, es in params
+                                               if p not in ("분극 R 합", "R_Σ")]}
     return compute_trends(g, include)

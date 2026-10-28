@@ -6,8 +6,6 @@ BEAF 로컬 웹 서버 (FastAPI)
 
 from __future__ import annotations
 
-import io
-import json
 import math
 import threading
 import time
@@ -16,8 +14,7 @@ import webbrowser
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -27,7 +24,6 @@ from .eis_io import SUPPORTED_ALL, load_file
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "web"
-USER_CIRCUITS = ROOT / "user_circuits.json"
 PORT = 8765
 
 app = FastAPI(title="BEAF")
@@ -116,34 +112,21 @@ def guide():
 def options():
     return {"cell": pipeline.CELL_TYPES, "electrode": pipeline.ELECTRODES,
             "electrolyte": pipeline.ELECTROLYTES, "state": pipeline.STATES, "default": pipeline.DEFAULT_META,
-            "variables": {k: {"label": v[0], "unit": v[1]} for k, v in series.VARIABLES.items()},
-            "autoeis": _autoeis_ok()}
-
-
-_AE_AVAILABLE = {"value": None}
-
-
-def _check_autoeis():
-    from . import autoeis_bridge
-    _AE_AVAILABLE["value"] = autoeis_bridge.is_available()
-
-
-def _autoeis_ok():
-    if _AE_AVAILABLE["value"] is None:
-        return True                                       # 확인 중이면 버튼은 보여 주고, 실행할 때 다시 확인
-    return _AE_AVAILABLE["value"]
+            "variables": {k: {"label": v[0], "unit": v[1]} for k, v in series.VARIABLES.items()}}
 
 
 # ---------------------------------------------------------------- 파일
 @app.post("/api/upload")
-async def upload(files: list[UploadFile] = File(...)):
+async def upload(files: list[UploadFile] = File(...), paths: list[str] = Form(default=[])):
+    """여러 파일 한 번에. paths = 화면에서 넣은 폴더 안 상대 경로 (표시 · 정렬용, 없으면 파일명)"""
     out = []
-    for uf in files:
+    for k, uf in enumerate(files):
+        rel = paths[k] if k < len(paths) else uf.filename
         if Path(uf.filename).suffix.lower() not in SUPPORTED_ALL:
-            out.append({"id": None, "name": uf.filename, "ok": False,
+            out.append({"id": None, "name": uf.filename, "path": rel, "ok": False,
                         "error": "지원하지 않는 형식 (" + ", ".join(SUPPORTED_ALL) + ")"})
             continue
-        out += _add(Path(uf.filename).name, await uf.read())
+        out += _add(Path(uf.filename).name, await uf.read(), rel)
     return clean(out)
 
 
@@ -178,8 +161,16 @@ def raw(fid: str):
     """원자료: 파일 안의 모든 cycle (분석 여부·성공 여부와 상관없이 항상 볼 수 있게)"""
     if fid not in FILES:
         raise HTTPException(404, "파일이 없습니다")
+    from . import analysis
     f = FILES[fid]
-    cycles = [{"cycle": c, "freq": sp.freq.tolist(), "Zre": sp.Z.real.tolist(), "Zim": sp.Z.imag.tolist()}
+
+    def auto(sp):
+        """연구실 방식 자동 구간 (직접 설정 창의 기본값)"""
+        r = analysis.auto_range(sp.freq, sp.Z)
+        r["R_HF"], r["f_cross"] = analysis.x_intercept(sp.freq, sp.Z, r["start"])
+        return r
+
+    cycles = [{"cycle": c, "freq": sp.freq.tolist(), "Zre": sp.Z.real.tolist(), "Zim": sp.Z.imag.tolist(), "auto": auto(sp)}
               for c, sp in f["cycles"].items()]
     return clean({"name": f["name"], "cycles": cycles, "selected": f["default_cycle"]})
 
@@ -203,200 +194,148 @@ class AnalyzeReq(BaseModel):
 def analyze(req: AnalyzeReq):
     if req.id not in FILES:
         raise HTTPException(404, "파일이 없습니다 (서버를 다시 켰다면 파일을 다시 넣어 주세요)")
-    f = FILES[req.id]
     sp = get_spec(req.id, req.cycle)
-    settings = dict(req.settings)
-    if f.get("autoeis_custom"):
-        settings["custom"] = list(settings.get("custom", [])) + f["autoeis_custom"]
-    res = pipeline.analyze(sp, req.meta, settings)
+    res = pipeline.analyze(sp, req.meta, dict(req.settings))
     res["id"] = req.id
-    if f.get("autoeis_info"):
-        res["autoeis"] = f["autoeis_info"]
     res = clean(res)
     with LOCK:
         RESULTS[req.id] = res
     return res
 
 
+# ---------------------------------------------------------------- 재분석 (EC-Lab Minimize 처럼, 단 이전 결과를 모두 남김)
+class RefineReq(BaseModel):
+    id: str
+    circuit: str
+    n_starts: int = 8
+
+
+def _hist_summary(r, circuit):
+    h = r.get("history", {}).get(circuit, [])
+    return {"list": h, "using": r.get("history_using", {}).get(circuit, len(h) - 1)}
+
+
+@app.post("/api/refine")
+def refine(req: RefineReq):
+    """지금 쓰고 있는 결과의 값에서 다시 출발해 피팅 (같은 회로 · 같은 구간). 새 결과를 기록에 쌓고 그것을 사용"""
+    from .fitting import fit_circuit
+    r = RESULTS.get(req.id)
+    if not r:
+        raise HTTPException(404, "먼저 분석하세요")
+    idx = next((i for i, c in enumerate(r["candidates"]) if c.get("ok") and c["circuit"] == req.circuit), None)
+    if idx is None:
+        raise HTTPException(400, "그 회로의 피팅 결과가 없습니다")
+    cur = r["candidates"][idx]
+    hist = r.setdefault("history", {}).setdefault(req.circuit, [])
+    if not hist:
+        hist.append({**cur, "round": 0, "label": "자동 분석", "t": time.time()})
+    m = np.array(r["mask"], bool)
+    f = np.array(r["freq"])[m]
+    Z = (np.array(r["Zre"]) + 1j * np.array(r["Zim"]))[m]
+    vals = dict(zip(cur["names"], cur["values"]))
+    bounds = {nm: (vals[nm] * (1 - 1e-6), vals[nm] * (1 + 1e-6)) for nm in cur.get("fixed") or [] if nm in vals}
+    drt = r.get("drt") or {}
+    peaks = drt.get("peaks", []) if drt.get("ok") else []
+    weak = [q for q in drt.get("peaks_all", []) if not q["edge"] and not q.get("warburg")] if drt.get("ok") else []
+    fit = fit_circuit(req.circuit, f, Z, p0=cur["values"], drt_peaks=peaks, n_starts=max(1, min(req.n_starts, 40)),
+                      seed=len(hist), bounds=bounds or None)
+    if not fit.get("ok"):
+        raise HTTPException(400, fit.get("error", "피팅 실패"))
+    fit = pipeline.finish_fit(fit, cur, f, r["meta"], peaks, weak, float(np.max(r["freq"])), Z)
+    noise = (r.get("kk") or {}).get("noise_pct")
+    fit["quality_ratio"] = fit["rms_pct"] / noise if noise else None
+    fit["dBIC"] = (cur.get("dBIC") or 0) + fit["bic"] - cur["bic"]
+    fit.update({"round": len(hist), "label": f"재분석 {len(hist)}", "t": time.time(),
+                "from_round": r.get("history_using", {}).get(req.circuit, 0), "prev_chi2": cur["chi2"]})
+    fit = clean(fit)
+    with LOCK:
+        hist.append(fit)
+        r.setdefault("history_using", {})[req.circuit] = fit["round"]
+        r["candidates"][idx] = fit
+    return clean(_hist_summary(r, req.circuit))
+
+
+class UseRoundReq(BaseModel):
+    id: str
+    circuit: str
+    round: int
+
+
+@app.post("/api/use_round")
+def use_round(req: UseRoundReq):
+    """기록 중 하나를 이 측정의 결과로 사용 (표 · 추세 · 엑셀에 그 값이 들어감)"""
+    r = RESULTS.get(req.id)
+    hist = (r or {}).get("history", {}).get(req.circuit)
+    if not hist or not 0 <= req.round < len(hist):
+        raise HTTPException(404, "기록이 없습니다")
+    idx = next(i for i, c in enumerate(r["candidates"]) if c.get("ok") and c["circuit"] == req.circuit)
+    with LOCK:
+        r["candidates"][idx] = hist[req.round]
+        r["history_using"][req.circuit] = req.round
+    return clean(_hist_summary(r, req.circuit))
+
+
+# ---------------------------------------------------------------- 회로 추천 (분석 전, 셀 정보 + DRT 만으로)
+class SuggestReq(BaseModel):
+    ids: list[str]
+    meta: dict = {}
+    cycles: dict = {}
+    mode: str = "arcs"
+
+
+@app.post("/api/suggest")
+def suggest(req: SuggestReq):
+    ids = [i for i in req.ids if i in FILES][:8]          # 최대 8개 측정으로 추천 (시간 절약)
+    if not ids:
+        raise HTTPException(404, "파일이 없습니다")
+    res = pipeline.suggest([get_spec(i, req.cycles.get(i)) for i in ids], req.meta, req.mode)
+    res["n_used"], res["n_total"] = len(ids), len(req.ids)
+    return clean(res)
+
+
 # ---------------------------------------------------------------- 추세 (독립 피팅 결과로, 다시 피팅하지 않음)
 class TrendsReq(BaseModel):
     variable: str
     groups: list[dict]          # [{name, items:[{id, x}], circuit|None, include{id: bool}|None}]
+    unify: bool = False         # True: 모든 묶음을 한 회로로 다시 피팅 (조성끼리 R_SEI · R_ct 비교)
+    circuit: str | None = None  # unify 일 때 쓸 회로 (없으면 전체에서 가장 잘 지지되는 회로)
 
 
 @app.post("/api/trends")
 def trends(req: TrendsReq):
     out = []
     TRENDS.clear()
-    for g in req.groups:
-        items = [{"id": it["id"], "name": RESULTS[it["id"]]["name"], "x": float(it["x"]), "result": RESULTS[it["id"]]}
-                 for it in g["items"] if it["id"] in RESULTS and it.get("x") is not None]
+    groups = [(g, [{"id": it["id"], "name": RESULTS[it["id"]]["name"], "x": float(it["x"]), "result": RESULTS[it["id"]]}
+                   for it in g["items"] if it["id"] in RESULTS and it.get("x") is not None]) for g in req.groups]
+    if req.unify:
+        allr = [it["result"] for _, items in groups for it in items]
+        # 전체를 한 회로로 비교할 때는 '가장 많은 측정에서 물리적으로 유효한' 회로를 먼저
+        #   (DRT 일치를 먼저 보면 2반원 회로가 뽑혀 대부분 조성에서 탈락: 46개 중 유효 7 vs 3반원 33)
+        ranking = sorted(group.consensus(allr), key=lambda x: (-x["n_valid"], -x["n_supported"], x["sum_bic"]))
+        chosen = req.circuit or (ranking[0]["circuit"] if ranking else None)
+        # 조성(묶음)마다 다른 프로세스에서 동시에 다시 피팅 (풀이 없으면 차례로)
+        todo = [(g, items) for g, items in groups if chosen and items]
+        futs = [pipeline.submit(series.analyze_group, g["name"], items, req.variable,
+                                items[0]["result"].get("meta") or {}, chosen) for g, items in todo]
+        for (g, items), fu in zip(todo, futs):
+            try:
+                res = fu.result() if fu is not None else None
+            except Exception:                             # noqa: BLE001
+                res = None
+            if res is None:
+                res = series.analyze_group(g["name"], items, req.variable, items[0]["result"].get("meta") or {}, chosen)
+            if res.get("ok") and g.get("include"):
+                series.compute_trends(res, g.get("include"))
+            res["global_ranking"] = ranking[:10]
+            res = clean(res)
+            TRENDS[g["name"]] = res
+            out.append(res)
+        return out
+    for g, items in groups:
         res = clean(series.trends_from_fits(g["name"], items, req.variable, g.get("circuit"), g.get("include")))
         TRENDS[g["name"]] = res
         out.append(res)
     return out
-
-
-# ---------------------------------------------------------------- AutoEIS (오래 걸리는 작업 → 백그라운드)
-JOBS: dict[str, dict] = {}
-_AE_POOL = None
-
-
-def _ae_pool():
-    """Julia 를 계속 살려 두는 전용 프로세스 1개"""
-    global _AE_POOL
-    if _AE_POOL is None:
-        from concurrent.futures import ProcessPoolExecutor
-        _AE_POOL = ProcessPoolExecutor(max_workers=1)
-    return _AE_POOL
-
-
-def _fit_data(fid, settings, cycle):
-    """분석과 같은 피팅 구간의 데이터"""
-    from . import analysis
-    sp = get_spec(fid, cycle)
-    st = {"mode": "arcs", "fmin": None, "fmax": None, "exclude_idx": [], **(settings or {})}
-    m = analysis.fit_mask(sp.freq, sp.Z, st["mode"], st["fmin"], st["fmax"], st["exclude_idx"])
-    return sp, sp.freq[m], sp.Z[m]
-
-
-class AutoEISReq(BaseModel):
-    id: str
-    iters: int = 24
-    meta: dict = {}
-    settings: dict = {}
-    cycle: str | float | None = "last"
-
-
-@app.post("/api/autoeis")
-def autoeis_start(req: AutoEISReq):
-    from . import autoeis_bridge
-    if req.id not in FILES:
-        raise HTTPException(404, "파일이 없습니다")
-    if not autoeis_bridge.is_available():
-        raise HTTPException(400, "AutoEIS(Julia)가 설치되어 있지 않습니다. 설치.bat 을 다시 실행하세요.")
-    sp, f, Z = _fit_data(req.id, req.settings, req.cycle)
-    jid = uuid.uuid4().hex[:8]
-    JOBS[jid] = {"kind": "search", "id": req.id, "status": "running", "started": time.time(), "iters": req.iters,
-                 "msg": f"AutoEIS 회로 탐색 중 (반복 {req.iters}회)"}
-    fut = _ae_pool().submit(autoeis_bridge.search, f, Z, req.iters)
-
-    def done(fu):
-        job = JOBS[jid]
-        try:
-            res = fu.result()
-        except Exception as e:                            # noqa: BLE001
-            res = {"ok": False, "error": f"{type(e).__name__}: {e}"}
-        if not res.get("ok"):
-            job.update(status="error", msg=res.get("error"))
-            return
-        job["msg"] = f"AutoEIS 후보 {len(res['circuits'])}개를 BEAF 기준으로 평가 중"
-        ae_custom = []
-        for c in res["circuits"]:
-            ae_custom.append({"circuit": c["circuit"], "p0": c["p0"], "source": "AutoEIS",
-                           "desc": f"AutoEIS 탐색: {c['autoeis']}" + (" (AutoEIS 필터 탈락)" if c.get("implausible") else "")})
-        # 이 파일에 AutoEIS 후보를 기억 → 이후 다시 분석해도 계속 후보에 포함
-        FILES[req.id]["autoeis_custom"] = ae_custom
-        FILES[req.id]["autoeis_info"] = {"seconds": res["seconds"], "iters": res["iters"], "n_raw": res["n_raw"],
-                                         "n_plausible": res["n_plausible"],
-                                         "circuits": [c["circuit"] for c in res["circuits"]]}
-        try:
-            custom = list(req.settings.get("custom", [])) + ae_custom
-            r = pipeline.analyze(sp, req.meta, {**req.settings, "custom": custom})
-            r["id"] = req.id
-            r["autoeis"] = FILES[req.id]["autoeis_info"]
-            r = clean(r)
-            with LOCK:
-                RESULTS[req.id] = r
-            job.update(status="done", msg=f"완료: AutoEIS 회로 {len(res['circuits'])}개 추가 ({res['seconds']:.0f} s)")
-        except Exception as e:                            # noqa: BLE001
-            job.update(status="error", msg=f"평가 실패: {type(e).__name__}: {e}")
-
-    fut.add_done_callback(done)
-    return {"job": jid}
-
-
-class BayesReq(BaseModel):
-    id: str
-    circuit: str
-    settings: dict = {}
-    cycle: str | float | None = "last"
-    num_warmup: int = 1000
-    num_samples: int = 500
-
-
-@app.post("/api/autoeis_bayes")
-def autoeis_bayes(req: BayesReq):
-    from . import autoeis_bridge
-    r = RESULTS.get(req.id)
-    if not r:
-        raise HTTPException(404, "먼저 분석하세요")
-    cand = next((c for c in r["candidates"] if c.get("ok") and c["circuit"] == req.circuit), None)
-    if not cand:
-        raise HTTPException(400, "그 회로의 피팅 결과가 없습니다")
-    try:
-        ae_str, p0, pmap = autoeis_bridge.from_beaf(req.circuit, cand["names"], cand["values"])
-    except Exception as e:                                # noqa: BLE001
-        raise HTTPException(400, str(e)) from e
-    _, f, Z = _fit_data(req.id, r.get("settings"), req.cycle)
-    jid = uuid.uuid4().hex[:8]
-    JOBS[jid] = {"kind": "bayes", "id": req.id, "circuit": req.circuit, "status": "running", "started": time.time(),
-                 "msg": f"AutoEIS 베이지안 추론 중 ({ae_str})"}
-    fut = _ae_pool().submit(autoeis_bridge.bayes, ae_str, f, Z, p0, req.num_warmup, req.num_samples)
-
-    def done(fu):
-        job = JOBS[jid]
-        try:
-            res = fu.result()
-        except Exception as e:                            # noqa: BLE001
-            res = {"ok": False, "error": f"{type(e).__name__}: {e}"}
-        if not res.get("ok"):
-            job.update(status="error", msg=res.get("error"))
-            return
-        # AutoEIS 이름 → BEAF 이름, 표본마다 τ 순서로 반원 정렬 후 요약
-        samples = {pmap[k]: v for k, v in res["samples"].items() if k in pmap}
-        post = autoeis_bridge.summarize_posterior(req.circuit, samples)
-        if post is None:
-            job.update(status="error", msg="사후 표본에 빠진 파라미터가 있습니다")
-            return
-        # CNLS 해와 비교: CNLS 값이 사후 95% 구간 밖이면 다른 해(모드)로 간 것
-        notes = []
-        moved = [n for n, v in zip(cand["names"], cand["values"])
-                 if n in post and n.startswith("R") and not (post[n]["lo95"] <= v <= post[n]["hi95"])]
-        if moved:
-            notes.append(f"사후분포가 CNLS 와 다른 해로 이동: {', '.join(moved)} 의 CNLS 값이 95% 구간 밖 "
-                         f"→ 이 저항들의 분리는 데이터로 결정되지 않음")
-        arcs_post = post.pop("_arcs", [])
-        peaks = (r.get("drt") or {}).get("peaks", [])
-        weak = [q for q in (r.get("drt") or {}).get("peaks_all", []) if not q["edge"]]
-        if arcs_post and peaks:
-            fl, sup = pipeline.drt_crosscheck({"arcs": arcs_post}, peaks, weak)
-            notes += [f"사후 해: {x['msg']}" for x in fl]
-            if sup:
-                notes.append("사후 해의 반원도 DRT 피크와 일치")
-        for key in ("반원 R 합", "R_Σ"):
-            if key in post:
-                q = post[key]
-                notes.append(f"{key} = {q['median']:.4g} [{q['lo95']:.4g}, {q['hi95']:.4g}] Ω (95%)")
-        with LOCK:
-            cand["bayes"] = clean({"params": post, "seconds": res["seconds"], "converged": res["converged"],
-                                   "autoeis_circuit": ae_str, "notes": notes, "arcs": arcs_post})
-        job.update(status="done", msg=f"완료 ({res['seconds']:.0f} s)")
-
-    fut.add_done_callback(done)
-    return {"job": jid}
-
-
-@app.get("/api/job/{jid}")
-def job_status(jid: str):
-    j = JOBS.get(jid)
-    if not j:
-        raise HTTPException(404, "작업이 없습니다")
-    out = {k: v for k, v in j.items()}
-    out["elapsed"] = time.time() - j["started"]
-    if j["status"] == "done":
-        out["result"] = RESULTS.get(j["id"])
-    return clean(out)
 
 
 class GroupReq(BaseModel):
@@ -421,41 +360,9 @@ def group_prior(req: GroupReq):
     return clean({"summaries": summaries, "results": touched})
 
 
-# ---------------------------------------------------------------- 사용자 회로
-def _load_uc():
-    if USER_CIRCUITS.exists():
-        return json.loads(USER_CIRCUITS.read_text(encoding="utf-8"))
-    return []
-
-
 class UCReq(BaseModel):
     circuit: str
     note: str = ""
-
-
-@app.get("/api/user_circuits")
-def get_uc():
-    return _load_uc()
-
-
-@app.post("/api/user_circuits")
-def add_uc(req: UCReq):
-    from .circuits import Circuit
-    try:
-        Circuit(req.circuit)
-    except Exception as e:                                # noqa: BLE001
-        raise HTTPException(400, str(e)) from e
-    uc = [x for x in _load_uc() if x["circuit"] != req.circuit]
-    uc.append({"circuit": req.circuit, "note": req.note})
-    USER_CIRCUITS.write_text(json.dumps(uc, ensure_ascii=False, indent=2), encoding="utf-8")
-    return uc
-
-
-@app.delete("/api/user_circuits")
-def del_uc(circuit: str):
-    uc = [x for x in _load_uc() if x["circuit"] != circuit]
-    USER_CIRCUITS.write_text(json.dumps(uc, ensure_ascii=False, indent=2), encoding="utf-8")
-    return uc
 
 
 @app.post("/api/check_circuit")
@@ -471,100 +378,16 @@ def check_circuit(req: UCReq):
 # ---------------------------------------------------------------- 내보내기
 class ExportReq(BaseModel):
     items: list[dict]          # [{id, circuit(채택), meta_edit{T_C, SOC, cycle_no, sample}}]
+    area: float | None = None  # cm² (Ω·cm² 환산)
 
 
 @app.post("/api/export")
 def export(req: ExportReq):
-    rows, sheets = [], {}
-    for it in req.items:
-        r = RESULTS.get(it["id"])
-        if not r:
-            continue
-        cand = next((c for c in r["candidates"] if c.get("ok") and c["circuit"] == it.get("circuit")),
-                    next((c for c in r["candidates"] if c.get("ok")), None))
-        fm = {**r.get("file_meta", {}), **(it.get("meta_edit") or {})}
-        row = {"측정": r["name"], "group": fm.get("group")}
-        labels = fm.get("_labels") or {}
-        for k, v in fm.items():                           # 파일·표에서 읽은 조건 (온도, SOC, 사이클 …)
-            if k not in ("sample", "group", "_labels", "x") and v is not None:
-                row[series.VARIABLES[k][0] if k in series.VARIABLES else labels.get(k, k)] = v
-        row.update({"status": r["status"], "notes": " / ".join(r["reasons"])})
-        if cand:
-            row.update({"circuit": cand["circuit"], "chi2": cand["chi2"], "rms (%)": cand["rms_pct"],
-                        "KK noise (%)": r["kk"].get("noise_pct"), "AIC": cand["aic"], "BIC": cand["bic"],
-                        "재현": f"{cand['reproduce'][0]}/{cand['reproduce'][1]}",
-                        "fit range (Hz)": f"{min(np.array(r['freq'])[r['mask']]):.3g} ~ "
-                                          f"{max(np.array(r['freq'])[r['mask']]):.3g}"})
-            for n, v, e in zip(cand["display_names"], cand["values"], cand["stderr"]):
-                row[n] = v
-                row[f"{n} err"] = e
-            for a, lab in zip(cand["arcs"], cand["arc_labels"]):
-                row[f"f_peak {lab[2:]} (Hz)"] = a["f_peak"]
-                row[f"C_eff {lab[2:]} (F)"] = a["C_eff"]
-            for x in cand.get("specials") or []:                      # Gerischer · TLM
-                row[f"{x['name']} 직류 저항 (Ω)"] = x["R"]
-                row[f"{x['name']} 특성 주파수 (Hz)"] = x["f_peak"]
-            ref = r.get("R0_ref")
-            if ref:                                                   # 직렬 저항 기준값 두 가지
-                row["R_HF 교차점 실수부 (Ω)"] = ref["R_HF"]
-                row["R0 L 보정 (Ω)"] = ref["R0_L"]
-                row["L 보정 회로 L (H)"] = ref["L"]
-                row["R0 L 보정 비고"] = ref["R0_L_note"]
-            flags = [x["msg"] for x in cand["flags"]]
-            row["flags"] = " / ".join(flags)
-            fr = np.array(r["freq"])[r["mask"]]
-            zre = np.array(r["Zre"])[r["mask"]]
-            zim = np.array(r["Zim"])[r["mask"]]
-            sheets[r["name"]] = pd.DataFrame({"freq (Hz)": fr, "Re(Z) data": zre, "-Im(Z) data": -zim,
-                                              "Re(Z) fit": cand["Zfit"][0],
-                                              "-Im(Z) fit": [-x for x in cand["Zfit"][1]]})
-        rows.append(row)
-    if not rows and not TRENDS:
-        raise HTTPException(400, "내보낼 분석 결과가 없습니다")
-
-    buf = io.BytesIO()
-    with pd.ExcelWriter(buf, engine="openpyxl") as xw:
-        if rows:
-            pd.DataFrame(rows).to_excel(xw, sheet_name="summary", index=False)
-        used = {"summary"}
-        ea_rows = []
-        for gname, g in TRENDS.items():
-            if not g.get("ok"):
-                continue
-            var = series.VARIABLES.get(g["variable"], (g["variable"], ""))
-            srows = []
-            for k, r in enumerate(g["rows"]):
-                d = {(f"{var[0]} ({var[1]})" if var[1] else var[0]): r["x"], "측정": r["name"],
-                     "공통 회로": g["circuit"], "파일 추천 회로": r.get("recommended"), "rms (%)": r.get("rms_pct"),
-                     "추세 포함": r.get("include"),
-                     "툴 제외 사유": r.get("excluded"), "flags": " / ".join(r.get("flags", []))}
-                if r["ok"]:
-                    for n, v, e in zip(g["param_names"], r["values"], r["stderr"]):
-                        d[n], d[f"{n} err"] = v, e
-                for t in g["trends"]:
-                    if t["outlier"][k]:
-                        d[f"{t['param']} 추세 이탈"] = f"{t['dev'][k] * 100:+.0f}%"
-                srows.append(d)
-            sn = ("S_" + "".join(ch for ch in gname if ch not in "[]:*?/\\"))[:28]
-            used.add(sn)
-            pd.DataFrame(srows).to_excel(xw, sheet_name=sn, index=False)
-            for t in g["trends"]:
-                a = t.get("arrhenius")
-                if a:
-                    ea_rows.append({"group": gname, "parameter": t["param"], "Ea (kJ/mol)": a["Ea"],
-                                    "Ea err": a["Ea_err"], "R²": a["r2"], "points": a["n"]})
-        if ea_rows:
-            pd.DataFrame(ea_rows).to_excel(xw, sheet_name="Arrhenius", index=False)
-            used.add("Arrhenius")
-        for name, df in sheets.items():
-            sn = "".join(ch for ch in Path(name).stem if ch not in r'[]:*?/\\')[:28]
-            k = 1
-            while sn in used:
-                sn = sn[:25] + f"_{k}"
-                k += 1
-            used.add(sn)
-            df.to_excel(xw, sheet_name=sn, index=False)
-    buf.seek(0)
+    from . import export as xl
+    try:
+        buf = xl.build(req.items, RESULTS, TRENDS, req.area)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                              headers={"Content-Disposition": "attachment; filename=BEAF_results.xlsx"})
 
@@ -573,8 +396,6 @@ def main():
     import os
 
     import uvicorn
-    # AutoEIS 를 불러오는 데 몇 초 걸리므로 서버 시작 때 백그라운드에서 한 번만 확인
-    threading.Thread(target=_check_autoeis, daemon=True).start()
     if not os.environ.get("BEAF_NO_BROWSER"):
         threading.Timer(1.2, lambda: webbrowser.open(f"http://127.0.0.1:{PORT}")).start()
     uvicorn.run(app, host="127.0.0.1", port=PORT, log_level="warning")
